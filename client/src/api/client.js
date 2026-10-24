@@ -20,6 +20,16 @@ export function setCsrfToken(token) {
   csrfToken = token;
 }
 
+// Called when a request that needs a login comes back 401 (session expired, revoked, user suspended),
+// so the app can drop its local state and send the person to the login page.
+let onUnauthenticated = null;
+export function setUnauthenticatedHandler(handler) {
+  onUnauthenticated = handler;
+}
+
+// Endpoints where a 401 is an expected answer, not a sign the session died.
+const EXPECTS_401 = ['/auth/me', '/auth/login', '/auth/register', '/invitations/'];
+
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export async function apiFetch(path, { method = 'GET', body, signal } = {}) {
@@ -53,6 +63,9 @@ export async function apiFetch(path, { method = 'GET', body, signal } = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 401 && onUnauthenticated && !EXPECTS_401.some((p) => path.startsWith(p))) {
+      onUnauthenticated();
+    }
     const e = payload?.error;
     throw new ApiError({
       status: response.status,

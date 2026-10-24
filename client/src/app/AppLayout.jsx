@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { useAuth } from '../auth/AuthContext.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { t } from '../i18n/en.js';
-import { NAV_ITEMS } from './navigation.js';
+import { NAV_ITEMS, visibleTo } from './navigation.js';
 
 const linkClass = ({ isActive }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -14,8 +15,58 @@ const subLinkClass = ({ isActive }) =>
     isActive ? 'text-white' : 'text-slate-400 hover:text-white'
   }`;
 
+function AccountFooter() {
+  const auth = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState(null);
+
+  async function switchBusiness(event) {
+    setError(null);
+    try {
+      await auth.chooseBusiness(event.target.value);
+      navigate('/');
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <div className="border-t border-navy-700 p-3 text-sm">
+      {auth.memberships.length > 1 ? (
+        <>
+          <label htmlFor="business-switcher" className="sr-only">Switch business</label>
+          <select
+            id="business-switcher"
+            value={auth.activeBusiness.id}
+            onChange={switchBusiness}
+            className="mb-2 w-full rounded-md border border-navy-700 bg-navy-800 px-2 py-1.5 text-white"
+          >
+            {auth.memberships.map((m) => (
+              <option key={m.businessId} value={m.businessId}>{m.businessName}</option>
+            ))}
+          </select>
+        </>
+      ) : (
+        <p className="truncate font-medium text-white">{auth.activeBusiness.name}</p>
+      )}
+      {error && <p role="alert" className="mb-1 text-xs text-red-300">{error}</p>}
+      <p className="truncate text-xs text-slate-400">
+        {auth.user.fullName} · {auth.activeBusiness.roleName}
+      </p>
+      <button
+        type="button"
+        onClick={() => auth.logout()}
+        className="mt-2 w-full rounded-md border border-navy-700 px-2 py-1.5 text-left text-slate-300 hover:bg-navy-800 hover:text-white"
+      >
+        Log out
+      </button>
+    </div>
+  );
+}
+
 function Sidebar({ onNavigate }) {
   const { pathname } = useLocation();
+  const auth = useAuth();
   return (
     <nav aria-label={t('nav.main')} className="flex h-full flex-col bg-navy-900 text-slate-200">
       <div className="px-5 py-5">
@@ -23,7 +74,7 @@ function Sidebar({ onNavigate }) {
         <p className="text-xs text-slate-400">{t('app.tagline')}</p>
       </div>
       <ul className="flex-1 space-y-1 overflow-y-auto px-3 pb-4">
-        {NAV_ITEMS.map((item) => (
+        {visibleTo(auth, NAV_ITEMS).map((item) => (
           <li key={item.key}>
             <NavLink to={item.to} end={item.end ?? Boolean(item.children)} onClick={onNavigate} className={linkClass}>
               <Icon name={item.icon} />
@@ -31,7 +82,7 @@ function Sidebar({ onNavigate }) {
             </NavLink>
             {item.children && pathname.startsWith(item.to) && (
               <ul className="mt-1 space-y-0.5">
-                {item.children.map((child) => (
+                {visibleTo(auth, item.children).map((child) => (
                   <li key={child.key}>
                     <NavLink to={child.to} end={child.end} onClick={onNavigate} className={subLinkClass}>
                       {child.label}
@@ -43,6 +94,7 @@ function Sidebar({ onNavigate }) {
           </li>
         ))}
       </ul>
+      <AccountFooter />
     </nav>
   );
 }
@@ -50,6 +102,7 @@ function Sidebar({ onNavigate }) {
 export function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { pathname } = useLocation();
+  const auth = useAuth();
 
   // Close the mobile drawer after navigating.
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -89,7 +142,7 @@ export function AppLayout() {
           >
             <Icon name="menu" />
           </button>
-          <span className="font-semibold text-navy-900">{t('app.name')}</span>
+          <span className="font-semibold text-navy-900">{auth.activeBusiness.name}</span>
         </header>
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <Outlet />

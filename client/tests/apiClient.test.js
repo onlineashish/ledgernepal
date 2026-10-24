@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, apiFetch, setCsrfToken } from '../src/api/client.js';
+import { ApiError, apiFetch, setCsrfToken, setUnauthenticatedHandler } from '../src/api/client.js';
 
 function mockFetch(response) {
   const fn = vi.fn().mockResolvedValue(response);
@@ -11,6 +11,27 @@ const json = (status, body) => ({ ok: status < 400, status, json: async () => bo
 afterEach(() => {
   vi.unstubAllGlobals();
   setCsrfToken(null);
+  setUnauthenticatedHandler(null);
+});
+
+describe('session ended (401)', () => {
+  it('tells the app to log out when a protected request comes back 401', async () => {
+    const handler = vi.fn();
+    setUnauthenticatedHandler(handler);
+    mockFetch(json(401, { error: { code: 'UNAUTHENTICATED', message: 'You need to log in' } }));
+    await expect(apiFetch('/contacts')).rejects.toMatchObject({ status: 401 });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not, for endpoints where 401 is the normal answer', async () => {
+    const handler = vi.fn();
+    setUnauthenticatedHandler(handler);
+    for (const path of ['/auth/me', '/auth/login', '/auth/register', '/invitations/preview']) {
+      mockFetch(json(401, { error: { code: 'UNAUTHENTICATED', message: 'x' } }));
+      await apiFetch(path).catch(() => {});
+    }
+    expect(handler).not.toHaveBeenCalled();
+  });
 });
 
 describe('apiFetch', () => {

@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { pinoHttp } from 'pino-http';
+import { serializeRequest } from './lib/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { originCheck, requireJson } from './middleware/security.js';
 import { createRateLimiters } from './middleware/rateLimit.js';
@@ -30,6 +31,7 @@ export function createApp({ config, logger, pool, clientDist, rateLimit = {} }) 
   app.use(
     pinoHttp({
       logger,
+      serializers: { req: serializeRequest }, // the HTTP logger has its own serializers; without this the query string is logged
       genReqId: (req, res) => {
         const id = randomUUID();
         res.setHeader('X-Request-Id', id);

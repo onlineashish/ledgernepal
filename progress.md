@@ -9,7 +9,7 @@
 |---|---|
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
-| 3. Authentication & authorization | 🟡 In progress — 3a, 3b, 3c done (branch `phase3-auth`); 3d React login, 3e password reset remaining |
+| 3. Authentication & authorization | 🟡 In progress — 3a, 3b, 3c, 3d done (branch `phase3-auth`); 3e password reset remaining |
 | 4. Core business features | ⚪ Not started |
 | 5. Hardening | ⚪ Not started |
 
@@ -95,7 +95,16 @@ Known gaps / things to verify later: UI not yet reviewed by eye in a browser; CI
   - New guard `guards.owner` for owner-exclusive actions; route-coverage test extended (public, account and owner lists); invitation endpoints rate-limited (20/15 min per IP).
   - **Tests (3c):** unit 24 (member rules); integration 33 (members, overrides, deactivation, cross-business, ownership) + 29 (invitations); RBAC matrix extended to all 8 new endpoints × 5 roles; whole repo **499/499** (119 shared + 366 server + 14 client), 2026-10-24. Mutation-checked: weakening the rank rule fails 4 tests across unit and integration.
   - Known limits: an invitation link is a bearer secret — anyone holding it AND an account with the matching email (or who signs up through it) can join, so share it only with the invitee. Emails are not verified, so "matching email" is a sanity check, not proof of identity.
-- [ ] **3d** Frontend auth flow (login, register, business picker, protected routes)
+- [x] **3d** Frontend auth flow (`client/src/auth`, `client/src/features/team`)
+  - `AuthProvider` mirrors the server session (`/auth/me`), holds the CSRF token, and exposes `can()/canAny()`; every user or business change removes all cached business data (only the "me" query is kept); a 401 from any protected call logs the person out locally.
+  - Pages: Log in, Create your business account, Choose a business (after login with several memberships), Accept invitation (works logged out as a new person, logged out with an existing account → log in and come back to the link, logged in with the right or wrong email), Team (members table with role change and two-step deactivate/reactivate, invite form, pending invitations with revoke).
+  - Invitation links: shown once with **Copy link** and **Share on WhatsApp**; no email involved. The token is sent only in POST bodies.
+  - Route protection: `RequireAuth` (login, then business), `PublicOnly`, `RequirePermission` ("no access" page and no data request when a role lacks access). Sidebar items, ledger sub-items and dashboard quick actions are filtered by permission — a convenience only; the server enforces everything.
+  - Sidebar footer: business name or switcher (when in several businesses), person and role, Log out.
+  - **Server change:** request logs now contain only the URL path — no query string, no parsed query object, no Referer — so invitation tokens (`/accept-invite?token=…`) and search text cannot reach the logs. A test caught that the first attempt did not work (the HTTP logger has its own serializer).
+  - **Bugs found by the tests and fixed:** (1) clearing the whole query cache on login also removed the session query the app was watching, so a successful login never left the login page; (2) after choosing a business the app navigated before the new session reached the screen and was redirected back to the picker; (3) a failed logout request threw an unhandled error.
+  - **Tests (3d):** client 66/66 (was 14): login, register, protected routes, logout, session expiry, business switching and cache clearing, permission-based navigation, invitation page flows, team page. Server +3 (log safety). Whole repo **554/554** (119 shared + 369 server + 66 client), 2026-10-25.
+  - **Not done in 3d (API exists, UI later):** per-member permission overrides editor and the transfer-ownership screen (planned with Settings in Phase 4). **Not checked by eye in a browser yet** — run `npm run dev` and try register → invite → accept in a second browser profile.
 - [ ] **3e** Password reset / change password / session list (nodemailer, console transport in dev)
 - Note: duplicate-email registration returns 409 (reveals that the email exists). Accepted trade-off for usability; mitigated by the registration rate limit.
 - Note: no platform administrator account can be created yet (admin module comes with Phase 4/5); `is_platform_admin` can only be set directly in the database.

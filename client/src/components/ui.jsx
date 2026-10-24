@@ -33,6 +33,52 @@ export function Card({ title, children, className = '' }) {
   );
 }
 
+/** Labelled text input with an inline error message tied to it for screen readers. */
+export function Field({ label, error, hint, id, className = '', ...inputProps }) {
+  const fieldId = id ?? `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  return (
+    <div className={className}>
+      <label htmlFor={fieldId} className="mb-1 block text-sm font-medium text-slate-700">
+        {label}
+      </label>
+      <input
+        id={fieldId}
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined}
+        className={`block w-full rounded-lg border px-3 py-2 text-sm focus:outline-2 focus:outline-brand-600 ${
+          error ? 'border-red-500' : 'border-slate-300'
+        }`}
+        {...inputProps}
+      />
+      {error ? (
+        <p id={`${fieldId}-error`} className="mt-1 text-sm text-red-700">
+          {error}
+        </p>
+      ) : (
+        hint && (
+          <p id={`${fieldId}-hint`} className="mt-1 text-xs text-slate-500">
+            {hint}
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
+const ALERT_STYLES = {
+  error: 'border-red-200 bg-red-50 text-red-800',
+  success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  info: 'border-blue-200 bg-blue-50 text-blue-800',
+};
+
+export function Alert({ tone = 'error', children, className = '' }) {
+  return (
+    <div role={tone === 'error' ? 'alert' : 'status'} className={`rounded-lg border px-3 py-2 text-sm ${ALERT_STYLES[tone]} ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 export function PageHeader({ title, description, actions }) {
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-3">

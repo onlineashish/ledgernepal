@@ -13,6 +13,7 @@ export const en = {
   'nav.addLedgerEntry': 'Add Ledger Entry',
   'nav.reports': 'Reports',
   'nav.settings': 'Settings',
+  'nav.team': 'Team',
   'nav.openMenu': 'Open menu',
   'nav.closeMenu': 'Close menu',
   'nav.main': 'Main navigation',
