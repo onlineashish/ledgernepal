@@ -8,7 +8,7 @@
 | Phase | Status |
 |---|---|
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
-| 2. Project foundation | 🟡 In progress — steps 2a, 2b done (branch `phase2-foundation`) |
+| 2. Project foundation | 🟡 In progress — steps 2a, 2b, 2c done; 2d (money/dates libs + CI) remaining (branch `phase2-foundation`) |
 | 3. Authentication & authorization | ⚪ Not started |
 | 4. Core business features | ⚪ Not started |
 | 5. Hardening | ⚪ Not started |
@@ -53,8 +53,12 @@ Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests 
 - Commands: `npm run db:migrate` · `db:migrate:down` (1 step) · `db:seed` · `db:status`
 - Not done on purpose: separate low-privilege DB role for the app (audit immutability is enforced by triggers instead; revisit in Phase 5 with RLS)
 - [ ] Test harness (vitest + supertest + test DB)
-- [ ] React/Vite/Router/Tailwind shell
-- [ ] Money + BS/AD date libraries with unit tests
+- [x] React 19 + Vite 8 + React Router 8 + Tailwind 4 + React Query shell (`client/`): navy sidebar, 8 nav sections, Ledger → View Ledger / Add Ledger Entry, mobile drawer, dashboard with 6 quick actions and a live server-status card, honest "Coming soon" placeholders for unbuilt pages, 404 page, `apiFetch` wrapper (error envelope → `ApiError`, CSRF header ready), string catalog for future Nepali (`src/i18n`)
+- [x] Express serves `client/dist` with SPA fallback in production (API paths still return JSON 404); `npm run dev` runs API + Vite with `/api` proxy; `npm run build` builds the client
+- **Step 2c tests:** server 51/51 + client 14/14 passing (2026-10-24). Verified by running: production build served on one port (`/`, `/contacts` refresh, `/api/health/ready`, JSON 404 under `/api`), and dev proxy through Vite. **Not yet checked by eye in a browser** — open http://localhost:5173 after `npm run dev` and confirm the look.
+- [ ] Money + BS/AD date libraries with unit tests (step 2d)
+- [ ] GitHub Actions workflow running tests on pull requests (step 2d; needs `TEST_DATABASE_URL` as a repo secret)
+- [ ] `render.yaml` / Render settings (build: `npm ci && npm run build`, start: `npm start`, health check `/api/health/ready`) — written in 2d or Phase 5
 
 ## Phase 3 — Authentication & authorization
 

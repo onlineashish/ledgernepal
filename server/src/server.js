@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { loadConfig } from './config/index.js';
 import { createLogger } from './lib/logger.js';
 import { createPool } from './db/pool.js';
@@ -8,7 +11,12 @@ const logger = createLogger(config);
 const pool = createPool(config.databaseUrl);
 pool.on('error', (err) => logger.error({ err }, 'Idle database client error'));
 
-const app = createApp({ config, logger, pool });
+// Serve the React build when it exists (production / `npm run build`); in dev Vite serves the UI.
+const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
+const hasClient = fs.existsSync(path.join(clientDist, 'index.html'));
+if (config.isProduction && !hasClient) logger.warn('client/dist not found: run "npm run build" first');
+
+const app = createApp({ config, logger, pool, clientDist: hasClient ? clientDist : undefined });
 const server = app.listen(config.port, () => {
   logger.info(`LedgerNepal API listening on http://localhost:${config.port} (${config.env})`);
 });
