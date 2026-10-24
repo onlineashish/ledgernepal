@@ -128,3 +128,79 @@ export async function revokeAllSessionsForUser(db, userId) {
 export async function setSessionBusiness(db, sessionId, businessId) {
   await db.query('UPDATE sessions SET active_business_id = $2 WHERE id = $1', [sessionId, businessId]);
 }
+
+// ------------------------------------------------------------------ password reset, password change, session list
+
+export async function findUserForReset(db, email) {
+  const { rows } = await db.query(
+    "SELECT id, email, full_name, status FROM users WHERE email = $1",
+    [email],
+  );
+  return rows[0] ?? null;
+}
+
+/** Retire every unused reset link of a user, so only the newest one works. */
+export async function invalidateResetTokens(db, userId) {
+  await db.query("UPDATE password_reset_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [userId]);
+}
+
+export async function insertResetToken(db, { userId, tokenHash, expiresAt }) {
+  await db.query(
+    "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
+    [userId, tokenHash, expiresAt],
+  );
+}
+
+/** A reset link is usable if it exists, is unused and unexpired. Locks the row for the caller's transaction. */
+export async function findUsableResetToken(db, tokenHash, { forUpdate = false } = {}) {
+  const { rows } = await db.query(
+    `SELECT t.id, t.user_id, u.email, u.full_name, u.status
+       FROM password_reset_tokens t JOIN users u ON u.id = t.user_id
+      WHERE t.token_hash = $1 AND t.used_at IS NULL AND t.expires_at > now()
+      ${forUpdate ? "FOR UPDATE OF t" : ""}`,
+    [tokenHash],
+  );
+  return rows[0] ?? null;
+}
+
+export async function markResetTokenUsed(db, id) {
+  await db.query("UPDATE password_reset_tokens SET used_at = now() WHERE id = $1", [id]);
+}
+
+/** New password: also clears any lockout, because the person has just proven control of the account. */
+export async function setPassword(db, userId, passwordHash) {
+  await db.query(
+    `UPDATE users SET password_hash = $2, password_changed_at = now(), failed_login_count = 0, locked_until = NULL
+      WHERE id = $1`,
+    [userId, passwordHash],
+  );
+}
+
+export async function revokeOtherSessions(db, userId, keepSessionId) {
+  const { rowCount } = await db.query(
+    "UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL AND id <> $2",
+    [userId, keepSessionId],
+  );
+  return rowCount;
+}
+
+export async function listUsableSessions(db, userId, idleMs) {
+  const { rows } = await db.query(
+    `SELECT id, created_at, last_seen_at, ip::text AS ip, user_agent
+       FROM sessions
+      WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()
+        AND last_seen_at > now() - ($2::int * interval '1 millisecond')
+      ORDER BY last_seen_at DESC`,
+    [userId, idleMs],
+  );
+  return rows;
+}
+
+/** Revokes one of the user's OWN sessions. Returns false if it is not theirs (or already gone). */
+export async function revokeOwnSession(db, userId, sessionId) {
+  const { rowCount } = await db.query(
+    "UPDATE sessions SET revoked_at = now() WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL",
+    [sessionId, userId],
+  );
+  return rowCount > 0;
+}

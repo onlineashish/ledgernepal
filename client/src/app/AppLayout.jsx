@@ -53,10 +53,13 @@ function AccountFooter() {
       <p className="truncate text-xs text-slate-400">
         {auth.user.fullName} · {auth.activeBusiness.roleName}
       </p>
+      <NavLink to="/account" className="mt-2 block rounded-md px-2 py-1.5 text-slate-300 hover:bg-navy-800 hover:text-white">
+        Account & security
+      </NavLink>
       <button
         type="button"
         onClick={() => auth.logout()}
-        className="mt-2 w-full rounded-md border border-navy-700 px-2 py-1.5 text-left text-slate-300 hover:bg-navy-800 hover:text-white"
+        className="mt-1 w-full rounded-md border border-navy-700 px-2 py-1.5 text-left text-slate-300 hover:bg-navy-800 hover:text-white"
       >
         Log out
       </button>

@@ -161,3 +161,14 @@ export async function userExistsByEmail(db, email) {
   const { rowCount } = await db.query('SELECT 1 FROM users WHERE email = $1', [email]);
   return rowCount > 0;
 }
+
+/** What decides whether an owner may create a password-reset link for this person (see service). */
+export async function getUserSecurityInfo(db, userId, businessId) {
+  const { rows } = await db.query(
+    `SELECT u.status, u.is_platform_admin,
+            (SELECT count(*)::int FROM business_users o WHERE o.user_id = u.id AND o.business_id <> $2) AS other_memberships
+       FROM users u WHERE u.id = $1`,
+    [userId, businessId],
+  );
+  return rows[0];
+}

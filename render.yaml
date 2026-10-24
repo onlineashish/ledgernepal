@@ -26,3 +26,11 @@ services:
         sync: false
       - key: DATABASE_URL_DIRECT # Neon direct URL, used only by migrations
         sync: false
+      # Email is optional. Leave these unset and "Forgot password" will not send mail (owners can still
+      # create reset links). To enable: MAIL_PROVIDER=brevo plus the key and a sender verified in Brevo.
+      - key: MAIL_PROVIDER
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: MAIL_FROM_EMAIL
+        sync: false

@@ -104,7 +104,7 @@ describe('team page: invitations', () => {
     await user.click(screen.getByRole('button', { name: 'Create invite link' }));
 
     expect(api.calledWith('POST /users/invitations')[0].body).toEqual({ email: 'ram@example.com', roleKey: 'viewer' });
-    const field = await screen.findByLabelText('Invitation link');
+    const field = await screen.findByLabelText('Link');
     expect(field).toHaveValue(link);
     expect(screen.getByText(/shown only once/i)).toBeInTheDocument();
     expect(screen.getByText(/No email is sent/)).toBeInTheDocument();
@@ -118,7 +118,7 @@ describe('team page: invitations', () => {
     expect(decodeURIComponent(whatsapp.getAttribute('href'))).toContain(link);
 
     await user.click(screen.getByRole('button', { name: 'Done' }));
-    expect(screen.queryByLabelText('Invitation link')).not.toBeInTheDocument(); // gone for good
+    expect(screen.queryByLabelText('Link')).not.toBeInTheDocument(); // gone for good
   });
 
   it('defaults to, and limits the choice to, roles below the inviter’s own', async () => {
@@ -152,7 +152,7 @@ describe('team page: invitations', () => {
     const user = userEvent.setup();
     renderApp({ route: '/team' });
     expect(await screen.findByText('new@example.com')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Invitation link')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Link')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Revoke' }));
     expect(api.calledWith('DELETE /users/invitations/i1')).toHaveLength(1);
   });

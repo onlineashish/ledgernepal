@@ -24,6 +24,11 @@ export function createRateLimiters(settings) {
     // Slows one address trying many accounts.
     loginIp: make({ windowMs: settings.loginIpWindowMs, limit: settings.loginIpMax, keyGenerator: byIp, skipSuccessfulRequests: true }),
     register: make({ windowMs: settings.registerWindowMs, limit: settings.registerMax, keyGenerator: byIp }),
+    // "Forgot password": few requests per person per hour (so nobody can flood an inbox), and per address overall.
+    // Applies to every email alike, so the 429 reveals nothing about which accounts exist.
+    passwordForgot: make({ windowMs: settings.passwordForgotWindowMs, limit: settings.passwordForgotMax, keyGenerator: byIpAndEmail }),
+    passwordForgotIp: make({ windowMs: settings.passwordForgotWindowMs, limit: settings.passwordForgotIpMax, keyGenerator: byIp }),
+    passwordReset: make({ windowMs: settings.passwordResetWindowMs, limit: settings.passwordResetMax, keyGenerator: byIp }),
     // Public invitation endpoints (preview / sign up with an invitation link).
     invitation: make({ windowMs: settings.invitationWindowMs, limit: settings.invitationMax, keyGenerator: byIp }),
     // Generous ceiling on everything under /api.

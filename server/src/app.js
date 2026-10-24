@@ -5,7 +5,9 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { pinoHttp } from 'pino-http';
+import { createBackgroundTasks } from './lib/background.js';
 import { serializeRequest } from './lib/logger.js';
+import { createMailer } from './lib/mailer.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { originCheck, requireJson } from './middleware/security.js';
 import { createRateLimiters } from './middleware/rateLimit.js';
@@ -21,8 +23,11 @@ import { healthRoutes } from './modules/health/routes.js';
  * Builds the Express app without starting a server, so tests can call it
  * directly with supertest.
  */
-export function createApp({ config, logger, pool, clientDist, rateLimit = {} }) {
+export function createApp({ config, logger, pool, clientDist, rateLimit = {}, mailer = createMailer(config.mail, { logger }) }) {
   const app = express();
+  const background = createBackgroundTasks(logger);
+  app.locals.background = background; // tests and shutdown wait on this
+  app.locals.mailer = mailer;
 
   app.disable('x-powered-by');
   // Behind Render's proxy, trust exactly that many hops so req.ip / req.secure are correct.
@@ -60,7 +65,7 @@ export function createApp({ config, logger, pool, clientDist, rateLimit = {} }) 
 
   mount('/api/health', healthRoutes({ pool }));
   app.use('/api', rateLimiters.api);
-  mount('/api/auth', authRoutes({ config, pool, rateLimiters, guards }));
+  mount('/api/auth', authRoutes({ config, pool, rateLimiters, guards, mailer, background }));
   mount('/api/contacts', contactRoutes({ pool, guards }));
   mount('/api/users', userRoutes({ config, pool, guards }));
   mount('/api/invitations', invitationRoutes({ config, pool, rateLimiters, guards }));

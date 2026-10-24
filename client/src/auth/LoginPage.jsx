@@ -32,6 +32,9 @@ export function LoginPage() {
         {generalMessage(error) && <Alert>{generalMessage(error)}</Alert>}
         <Field label="Email" type="email" autoComplete="email" required value={form.email} onChange={set('email')} error={errors.email} />
         <Field label="Password" type="password" autoComplete="current-password" required value={form.password} onChange={set('password')} error={errors.password} />
+        <p className="-mt-2 text-right text-sm">
+          <Link to="/forgot-password" className="text-brand-600 hover:underline">Forgot your password?</Link>
+        </p>
         <Button type="submit" className="w-full" disabled={busy}>
           {busy ? 'Logging in…' : 'Log in'}
         </Button>

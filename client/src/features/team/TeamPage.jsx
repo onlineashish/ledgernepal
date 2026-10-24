@@ -4,6 +4,7 @@ import { ROLES, ROLE_KEYS } from '@ledgernepal/shared/permissions';
 import { apiFetch } from '../../api/client.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { Alert, Button, Card, EmptyState, Field, PageHeader } from '../../components/ui.jsx';
+import { ShareLinkCard } from '../../components/ShareLinkCard.jsx';
 import { fieldErrors } from '../../lib/formErrors.js';
 
 const MEMBERS_KEY = ['team', 'members'];
@@ -14,7 +15,7 @@ export function TeamPage() {
   const auth = useAuth();
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState(null);
-  const [newLink, setNewLink] = useState(null);
+  const [share, setShare] = useState(null); // the one-time link being shown (invitation or password reset)
 
   const members = useQuery({ queryKey: MEMBERS_KEY, queryFn: ({ signal }) => apiFetch('/users', { signal }).then((r) => r.data) });
   const invitations = useQuery({ queryKey: INVITATIONS_KEY, queryFn: ({ signal }) => apiFetch('/users/invitations', { signal }).then((r) => r.data) });
@@ -31,15 +32,49 @@ export function TeamPage() {
     onError: (err) => setActionError(err),
   });
 
+  const resetLink = useMutation({
+    mutationFn: (m) => apiFetch(`/users/${m.membershipId}/password-reset-link`, { method: 'POST' }).then((r) => r.data),
+    onMutate: () => setActionError(null),
+    onSuccess: (data) =>
+      setShare({
+        title: 'Share this password reset link',
+        intro: (
+          <>
+            For <strong>{data.fullName}</strong> ({data.email}). Send it to them yourself, for example on WhatsApp; they then choose their own password.
+            It works once and expires in {data.expiresInHours} hours. <strong>This link is shown only once.</strong> Using it logs them out everywhere.
+          </>
+        ),
+        url: data.resetUrl,
+        shareText: 'Use this link to choose a new LedgerNepal password:',
+      }),
+    onError: (err) => setActionError(err),
+  });
+
   return (
     <>
       <PageHeader title="Team" description={`People who can work in ${auth.activeBusiness.name}.`} />
       {actionError && <Alert className="mb-4">{actionError.message}</Alert>}
 
       {auth.can('users.invite') && assignable.length > 0 && (
-        <InviteCard assignable={assignable} onCreated={(created) => { setNewLink(created); refresh(); }} />
+        <InviteCard
+          assignable={assignable}
+          onCreated={(created) => {
+            setShare({
+              title: 'Share this link',
+              intro: (
+                <>
+                  Invitation for <strong>{created.email}</strong> as {created.roleName}. <strong>This link is shown only once.</strong> If you lose it,
+                  revoke the invitation and create a new one.
+                </>
+              ),
+              url: created.inviteUrl,
+              shareText: `You are invited to join on LedgerNepal as ${created.roleName}:`,
+            });
+            refresh();
+          }}
+        />
       )}
-      {newLink && <InviteLink invitation={newLink} onDismiss={() => setNewLink(null)} />}
+      {share && <ShareLinkCard {...share} onDismiss={() => setShare(null)} />}
 
       <Card title="Members" className="mt-6">
         {members.isPending && <p className="text-sm text-slate-600">Loading…</p>}
@@ -57,7 +92,15 @@ export function TeamPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {members.data.map((m) => (
-                  <MemberRow key={m.membershipId} member={m} assignable={assignable} busy={mutate.isPending} mutate={mutate.mutate} isSelf={m.userId === auth.user.id} />
+                  <MemberRow
+                    key={m.membershipId}
+                    member={m}
+                    assignable={assignable}
+                    busy={mutate.isPending || resetLink.isPending}
+                    mutate={mutate.mutate}
+                    onResetLink={resetLink.mutate}
+                    isSelf={m.userId === auth.user.id}
+                  />
                 ))}
               </tbody>
             </table>
@@ -96,7 +139,7 @@ export function TeamPage() {
   );
 }
 
-function MemberRow({ member, assignable, busy, mutate, isSelf }) {
+function MemberRow({ member, assignable, busy, mutate, onResetLink, isSelf }) {
   const [confirming, setConfirming] = useState(false);
   const active = member.status === 'active';
   const canChangeRole = member.manageable && active;
@@ -127,6 +170,11 @@ function MemberRow({ member, assignable, busy, mutate, isSelf }) {
       </td>
       <td className="py-3 pr-4">{active ? 'Active' : 'Deactivated'}</td>
       <td className="py-3 text-right">
+        {member.manageable && active && !confirming && (
+          <Button variant="secondary" className="mr-2" disabled={busy} aria-label={`Create password reset link for ${member.fullName}`} onClick={() => onResetLink(member)}>
+            Reset link
+          </Button>
+        )}
         {member.manageable && !confirming && (
           <Button variant="secondary" disabled={busy} onClick={() => (active ? setConfirming(true) : mutate({ path: `/users/${member.membershipId}/reactivate` }))}>
             {active ? 'Deactivate' : 'Reactivate'}
@@ -174,36 +222,6 @@ function InviteCard({ assignable, onCreated }) {
       </form>
       {error && !errors.email && <Alert className="mt-3">{error.message}</Alert>}
       <p className="mt-3 text-xs text-slate-500">No email is sent. You get a link to share yourself, for example on WhatsApp. Anyone with the link can use it, so send it only to the person invited.</p>
-    </Card>
-  );
-}
-
-function InviteLink({ invitation, onDismiss }) {
-  const [copied, setCopied] = useState(false);
-  const message = `You are invited to join on LedgerNepal as ${invitation.roleName}: ${invitation.inviteUrl}`;
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(invitation.inviteUrl);
-      setCopied(true);
-    } catch {
-      document.getElementById('invite-link')?.select(); // clipboard blocked: select it so Ctrl+C works
-    }
-  }
-
-  return (
-    <Card title="Share this link" className="mt-6 border-emerald-200 bg-emerald-50">
-      <p className="text-sm text-slate-700">
-        Invitation for <strong>{invitation.email}</strong> as {invitation.roleName}. <strong>This link is shown only once.</strong> If you lose it, revoke the invitation and create a new one.
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <input id="invite-link" readOnly value={invitation.inviteUrl} aria-label="Invitation link" onFocus={(e) => e.target.select()} className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
-        <Button onClick={copy}>{copied ? 'Copied' : 'Copy link'}</Button>
-        <Button variant="secondary" to={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noopener noreferrer">
-          Share on WhatsApp
-        </Button>
-        <Button variant="secondary" onClick={onDismiss}>Done</Button>
-      </div>
     </Card>
   );
 }

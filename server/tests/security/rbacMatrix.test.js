@@ -58,6 +58,7 @@ const ENDPOINTS = [
   { name: 'DELETE /users/invitations/:id', permission: 'users.invite', okStatus: 200, prepare: newInvitation, call: (s, i) => s.delete(`/api/users/invitations/${i.id}`) },
   { name: 'PATCH /users/:id', permission: 'users.manage', okStatus: 200, prepare: newMember, call: (s, m) => s.patch(`/api/users/${m.membershipId}`, { overrides: [] }) },
   { name: 'POST /users/:id/deactivate', permission: 'users.manage', okStatus: 200, prepare: newMember, call: (s, m) => s.post(`/api/users/${m.membershipId}/deactivate`) },
+  { name: 'POST /users/:id/password-reset-link', permission: 'users.manage', okStatus: 201, prepare: newMember, call: (s, m) => s.post(`/api/users/${m.membershipId}/password-reset-link`) },
   { name: 'POST /users/:id/reactivate', permission: 'users.manage', okStatus: 200, prepare: deactivatedMember, call: (s, m) => s.post(`/api/users/${m.membershipId}/reactivate`) },
 ];
 

@@ -4,6 +4,7 @@ import { writeAudit } from '../../lib/audit.js';
 import { assignableRoleProblem, manageTargetProblem, overrideProblem } from '../../lib/memberRules.js';
 import { generateToken, hashToken } from '../../lib/tokens.js';
 import { withTransaction } from '../../db/pool.js';
+import { ASSISTED_RESET_MINUTES, issueResetToken, resetUrl } from '../auth/passwordService.js';
 import * as repo from './repo.js';
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -135,6 +136,48 @@ export function setMemberActive({ pool, req }, membershipId, active) {
       metadata: { userId: target.user_id, email: target.email },
     });
     return toMember(await repo.findMember(tx, req.business.id, membershipId), actor);
+  });
+}
+
+/**
+ * Owner-assisted password reset for someone with no usable email. The result is a one-time link the
+ * owner/admin passes to that person (e.g. on WhatsApp); the PERSON then chooses their own password.
+ *
+ * Safety rules:
+ *  - normal rank rules (never yourself, the owner, or an equal/higher rank);
+ *  - only for people whose ONLY business is this one. If they also belong to another business, whoever
+ *    holds the link could set the password and reach that other business, so only they may reset it;
+ *  - never for platform administrators or suspended accounts;
+ *  - everything is audited, and using the link ends all of that person's sessions.
+ * Honest limit: whoever holds the link could open it before the person does and set the password
+ * themselves. Within their own business that is nothing an owner could not already do, but it is why
+ * the link is single-use, short-lived, shown once, and audited.
+ */
+export function createPasswordResetLink({ pool, config, req }, membershipId) {
+  const actor = actorOf(req);
+  return withTransaction(pool, async (tx) => {
+    const target = await repo.findMember(tx, req.business.id, membershipId, { forUpdate: true });
+    if (!target) throw notFound('Member not found');
+    const blocked = manageTargetProblem(actor, targetOf(target));
+    if (blocked) throw forbidden(blocked);
+    if (target.status !== 'active') throw conflict('Reactivate this member before creating a reset link');
+
+    const info = await repo.getUserSecurityInfo(tx, target.user_id, req.business.id);
+    if (info.is_platform_admin || info.status !== 'active') {
+      throw conflict('A reset link cannot be created for this account');
+    }
+    if (info.other_memberships > 0) {
+      throw conflict('This person also belongs to other businesses, so only they can reset their own password. Ask them to use "Forgot password" on the login page.');
+    }
+
+    const token = await issueResetToken(tx, target.user_id, ASSISTED_RESET_MINUTES);
+    await audit(tx, req, 'user.password_reset_link', membershipId, { metadata: { userId: target.user_id, email: target.email } });
+    return {
+      fullName: target.full_name,
+      email: target.email,
+      resetUrl: resetUrl(config, token),
+      expiresInHours: ASSISTED_RESET_MINUTES / 60,
+    };
   });
 }
 

@@ -1,6 +1,9 @@
 import { Route, Routes } from 'react-router';
 import { AcceptInvitePage } from '../auth/AcceptInvitePage.jsx';
 import { ChooseBusinessPage } from '../auth/ChooseBusinessPage.jsx';
+import { ForgotPasswordPage } from '../auth/ForgotPasswordPage.jsx';
+import { ResetPasswordPage } from '../auth/ResetPasswordPage.jsx';
+import { AccountPage } from '../features/account/AccountPage.jsx';
 import { LoginPage } from '../auth/LoginPage.jsx';
 import { RegisterPage } from '../auth/RegisterPage.jsx';
 import { PublicOnly, RequireAuth, RequirePermission } from '../auth/guards.jsx';
@@ -38,8 +41,10 @@ export function App() {
         <Route path="register" element={<RegisterPage />} />
       </Route>
 
-      {/* Works whether or not you are logged in: the page adapts */}
+      {/* Work whether or not you are logged in: the page adapts */}
       <Route path="accept-invite" element={<AcceptInvitePage />} />
+      <Route path="forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="reset-password" element={<ResetPasswordPage />} />
 
       {/* Logged in, business not required yet */}
       <Route element={<RequireAuth requireBusiness={false} />}>
@@ -50,6 +55,7 @@ export function App() {
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="account" element={<AccountPage />} />
           <Route path="team" element={<RequirePermission permission="users.view"><TeamPage /></RequirePermission>} />
           {PLACEHOLDER_ROUTES.map(([path, title, permission]) => (
             <Route

@@ -42,6 +42,23 @@ npm run db:migrate:down  # revert the most recent migration (one step)
 npm run db:status        # list applied migrations
 ```
 
+## Email (optional)
+
+Invitations never use email: the inviter copies a link and shares it (e.g. on WhatsApp).
+Email is used for one thing only: **"Forgot password"**. Without it, an owner or administrator can still
+create a reset link for a team member (Team page → *Reset link*) and send it by hand.
+
+To send real reset emails with [Brevo](https://www.brevo.com) (free plan, works on Render, no domain needed):
+
+1. Create a Brevo account and verify a sender address: *Senders, Domains & Dedicated IPs → Senders*.
+   (An address on a free provider such as Gmail may be filtered to spam; a domain you own is more reliable.)
+2. Create an API key: *SMTP & API → API Keys*.
+3. Set `MAIL_PROVIDER=brevo`, `BREVO_API_KEY` and `MAIL_FROM_EMAIL` in `.env` (locally) or the Render dashboard.
+
+Locally, with nothing set, emails are printed in the server log (including the reset link). In production
+the console provider is refused on purpose, because it would put reset links in the logs. Free-plan limits
+change; check Brevo's current numbers.
+
 ## Git workflow
 
 Work on a branch, open a pull request, let CI pass, merge into `main`. Render deploys `main`.

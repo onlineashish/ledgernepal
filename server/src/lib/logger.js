@@ -12,6 +12,8 @@ const REDACT_PATHS = [
   '*.newPassword',
   '*.token',
   '*.connectionString',
+  '*.apiKey',
+  '*.brevoApiKey',
 ];
 
 /**

@@ -41,6 +41,10 @@ export function userRoutes({ config, pool, guards }) {
     res.json({ data: await service.setMemberActive({ ...deps, req }, req.valid.params.membershipId, false) });
   });
 
+  router.post('/:membershipId/password-reset-link', ...guards.tenant('users.manage'), validate({ params: membershipParams }), async (req, res) => {
+    res.status(201).json({ data: await service.createPasswordResetLink({ ...deps, req }, req.valid.params.membershipId) });
+  });
+
   router.post('/:membershipId/reactivate', ...guards.tenant('users.manage'), validate({ params: membershipParams }), async (req, res) => {
     res.json({ data: await service.setMemberActive({ ...deps, req }, req.valid.params.membershipId, true) });
   });

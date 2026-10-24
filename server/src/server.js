@@ -25,6 +25,7 @@ const server = app.listen(config.port, () => {
 function shutdown(signal) {
   logger.info(`${signal} received, shutting down`);
   server.close(async () => {
+    await app.locals.background.idle(); // let any email being sent finish
     await pool.end();
     process.exit(0);
   });

@@ -15,6 +15,9 @@ const PUBLIC_ROUTES = [
   // Invitation links are used by people without an account; the unguessable token is the credential.
   'POST /api/invitations/preview',
   'POST /api/invitations/accept-new',
+  // Forgotten password: the emailed / handed-over single-use token is the credential.
+  'POST /api/auth/password/forgot',
+  'POST /api/auth/password/reset',
 ];
 
 // Routes that need a login (and CSRF) but are about the user's own account, not business data.
@@ -23,6 +26,10 @@ const ACCOUNT_ROUTES = [
   'POST /api/auth/logout',
   'POST /api/auth/active-business',
   'POST /api/invitations/accept',
+  'POST /api/auth/password/change',
+  'GET /api/auth/sessions',
+  'POST /api/auth/sessions/revoke-others',
+  'DELETE /api/auth/sessions/:id',
 ];
 
 // Owner-exclusive actions (not grantable permissions).

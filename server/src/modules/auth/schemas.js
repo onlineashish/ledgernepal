@@ -35,6 +35,20 @@ export const registerBody = z
 
 export const loginBody = z.strictObject({ email, password: passwordField });
 
-export const activeBusinessBody = z.strictObject({
+export const forgotPasswordBody = z.strictObject({ email });
+
+export const resetPasswordBody = z.strictObject({
+  token: z.string({ error: 'The reset link is incomplete' }).trim().min(20, 'The reset link is incomplete').max(100, 'The reset link is incomplete'),
+  password: passwordField,
+});
+
+export const changePasswordBody = z.strictObject({
+  currentPassword: z.string({ error: 'Enter your current password' }).min(1, 'Enter your current password').max(PASSWORD_MAX_LENGTH),
+  newPassword: passwordField,
+});
+
+export const sessionIdParams = z.strictObject({ id: z.uuid({ error: 'Invalid session id' }) });
+
+export const activeBusinessBody =z.strictObject({
   businessId: z.uuid({ error: 'Choose a valid business' }),
 });
