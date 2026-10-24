@@ -40,6 +40,18 @@ const deactivatedMember = async () => {
 const newInvitation = async () =>
   (await owner.post('/api/users/invitations', { email: uniqueEmail('pending'), roleKey: 'viewer' })).body.data;
 
+// Ledger: every call gets its own contact/entry, created by the owner, so the role under test only makes the one call.
+const newLedgerEntry = async () => {
+  const contact = await newContact();
+  const entry = (await owner.post('/api/ledger/entries', { contactId: contact.id, txnDate: '2025-08-01', direction: 'you_gave', amount: '100' })).body.data;
+  return { id: entry.id, contactId: contact.id };
+};
+const contactWithOpening = async () => {
+  const contact = await newContact();
+  await owner.put(`/api/contacts/${contact.id}/opening-balance`, { amount: '50', side: 'they_owe_me' });
+  return contact;
+};
+
 // `prepare` creates whatever the call needs, using the owner, so the role under test only makes the one call.
 const ENDPOINTS = [
   { name: 'GET /contacts', permission: 'contacts.view', okStatus: 200, call: (s) => s.get('/api/contacts') },
@@ -48,6 +60,17 @@ const ENDPOINTS = [
   { name: 'PATCH /contacts/:id', permission: 'contacts.update', okStatus: 200, prepare: newContact, call: (s, c) => s.patch(`/api/contacts/${c.id}`, { notes: 'edited' }) },
   { name: 'POST /contacts/:id/archive', permission: 'contacts.archive', okStatus: 200, prepare: newContact, call: (s, c) => s.post(`/api/contacts/${c.id}/archive`) },
   { name: 'POST /contacts/:id/unarchive', permission: 'contacts.archive', okStatus: 200, prepare: archivedContact, call: (s, c) => s.post(`/api/contacts/${c.id}/unarchive`) },
+
+  // Ledger and opening balances.
+  { name: 'GET /ledger/entries', permission: 'ledger.view', okStatus: 200, call: (s) => s.get('/api/ledger/entries') },
+  { name: 'GET /ledger/entries/:id', permission: 'ledger.view', okStatus: 200, prepare: newLedgerEntry, call: (s, e) => s.get(`/api/ledger/entries/${e.id}`) },
+  { name: 'GET /ledger/contacts/:contactId', permission: 'ledger.view', okStatus: 200, prepare: newContact, call: (s, c) => s.get(`/api/ledger/contacts/${c.id}`) },
+  { name: 'POST /ledger/entries', permission: 'ledger.create', okStatus: 201, prepare: newContact, call: (s, c) => s.post('/api/ledger/entries', { contactId: c.id, txnDate: '2025-08-01', direction: 'you_got', amount: '25' }) },
+  { name: 'PATCH /ledger/entries/:id', permission: 'ledger.correct', okStatus: 200, prepare: newLedgerEntry, call: (s, e) => s.patch(`/api/ledger/entries/${e.id}`, { notes: 'checked' }) },
+  { name: 'POST /ledger/entries/:id/void', permission: 'ledger.correct', okStatus: 200, prepare: newLedgerEntry, call: (s, e) => s.post(`/api/ledger/entries/${e.id}/void`, { reason: 'matrix test void' }) },
+  { name: 'POST /ledger/entries/:id/correct', permission: 'ledger.correct', okStatus: 201, prepare: newLedgerEntry, call: (s, e) => s.post(`/api/ledger/entries/${e.id}/correct`, { amount: '1', reason: 'matrix test fix' }) },
+  { name: 'PUT /contacts/:id/opening-balance (first one)', permission: 'ledger.create', okStatus: 200, prepare: newContact, call: (s, c) => s.put(`/api/contacts/${c.id}/opening-balance`, { amount: '10', side: 'they_owe_me' }) },
+  { name: 'DELETE /contacts/:id/opening-balance', permission: 'ledger.correct', okStatus: 200, prepare: contactWithOpening, call: (s, c) => s.delete(`/api/contacts/${c.id}/opening-balance`) },
 
   // Members and invitations. Targets are fresh Staff members / Viewer invitations, which every role that
   // holds the permission is also senior enough to manage, so the permission is the only variable.
@@ -135,6 +158,54 @@ describe('per-member overrides', () => {
       [owner.businessId, viewer.membershipId],
     );
     expect((await viewer.patch(`/api/contacts/${c.id}`, { notes: 'x' })).status).toBe(200);
+  });
+});
+
+describe('money rules that combine permissions', () => {
+  it('staff can enter a first opening balance but not replace or remove it (that needs ledger.correct)', async () => {
+    const staff = await createMemberSession(app, pool, { businessId: owner.businessId, roleKey: 'staff', label: 'opening-staff' });
+    const contact = await newContact();
+    const open = (amount) => staff.put(`/api/contacts/${contact.id}/opening-balance`, { amount, side: 'they_owe_me' });
+    expect((await open('100')).status).toBe(200);
+    const replace = await open('999');
+    expect(replace.status).toBe(403);
+    expect((await staff.delete(`/api/contacts/${contact.id}/opening-balance`)).status).toBe(403);
+    const balance = (await owner.get(`/api/contacts/${contact.id}`)).body.data.balance;
+    expect(balance.amount).toBe('100.00'); // unchanged
+    // a person with ledger.correct can
+    expect((await owner.put(`/api/contacts/${contact.id}/opening-balance`, { amount: '999', side: 'they_owe_me' })).status).toBe(200);
+  });
+
+  it('a new contact can carry an opening balance only if the creator may also create ledger entries', async () => {
+    const noLedger = await createMemberSession(app, pool, { businessId: owner.businessId, roleKey: 'staff', label: 'no-ledger-create', denies: ['ledger.create'] });
+    const name = `Opening Denied ${Math.random().toString(36).slice(2, 8)}`;
+    const refused = await noLedger.post('/api/contacts', { name, types: ['customer'], openingBalance: { amount: '500', side: 'they_owe_me' } });
+    expect(refused.status).toBe(403);
+    expect((await pool.query('SELECT 1 FROM contacts WHERE name = $1', [name])).rowCount).toBe(0); // nothing half-created
+    expect((await noLedger.post('/api/contacts', { name, types: ['customer'] })).status).toBe(201); // without it, fine
+  });
+
+  it('someone denied ledger.view sees no balances and no ledger, but still sees the contact', async () => {
+    const blind = await createMemberSession(app, pool, { businessId: owner.businessId, roleKey: 'staff', label: 'no-ledger-view', denies: ['ledger.view'] });
+    const contact = await contactWithOpening();
+    const detail = await blind.get(`/api/contacts/${contact.id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.data.balance).toBeNull();
+    expect(detail.body.data.openingBalance).toBeNull();
+    const list = await blind.get('/api/contacts?pageSize=100');
+    expect(list.body.data.every((c) => c.balance === null)).toBe(true);
+    expect(JSON.stringify(list.body)).not.toContain('50.00');
+    expect((await blind.get(`/api/ledger/contacts/${contact.id}`)).status).toBe(403);
+    expect((await blind.get('/api/ledger/entries')).status).toBe(403);
+  });
+
+  it('an accountant denied ledger.correct cannot void or correct, but can still add entries', async () => {
+    const limited = await createMemberSession(app, pool, { businessId: owner.businessId, roleKey: 'accountant', label: 'no-correct', denies: ['ledger.correct'] });
+    const { id, contactId } = await newLedgerEntry();
+    expect((await limited.post(`/api/ledger/entries/${id}/void`, { reason: 'should not work' })).status).toBe(403);
+    expect((await limited.post(`/api/ledger/entries/${id}/correct`, { amount: '1', reason: 'should not work' })).status).toBe(403);
+    expect((await limited.post('/api/ledger/entries', { contactId, txnDate: '2025-08-01', direction: 'you_gave', amount: '5' })).status).toBe(201);
+    expect((await owner.get(`/api/ledger/entries/${id}`)).body.data.status).toBe('posted');
   });
 });
 

@@ -286,3 +286,118 @@ describe('audit trail stays inside the business that acted', () => {
     expect(bLogs.rowCount).toBe(0); // A never acted inside B
   });
 });
+
+describe("ledger data is as tightly walled off as contacts", () => {
+  let bEntry;
+  let bEntry2;
+  const bLedgerState = async () =>
+    (await pool.query("SELECT id, status, total, txn_date, contact_id, description FROM transactions WHERE business_id = $1 ORDER BY id", [b.businessId])).rows;
+
+  beforeAll(async () => {
+    await b.put("/api/contacts/" + bContact.id + "/opening-balance", { amount: "7000", side: "they_owe_me", asOfDate: "2025-08-01" });
+    bEntry = (await b.post("/api/ledger/entries", { contactId: bContact.id, txnDate: "2025-08-02", direction: "you_gave", amount: "1234.56", description: "Zorblax private deal" })).body.data;
+    bEntry2 = (await b.post("/api/ledger/entries", { contactId: bContact.id, txnDate: "2025-08-03", direction: "you_got", amount: "34.00" })).body.data;
+    await a.post("/api/ledger/entries", { contactId: aContact.id, txnDate: "2025-08-01", direction: "you_gave", amount: "50" });
+  });
+
+  it("cannot read B’s contact ledger or entries by id (404, same as a nonexistent id)", async () => {
+    const foreignLedger = await a.get("/api/ledger/contacts/" + bContact.id);
+    const missingLedger = await a.get("/api/ledger/contacts/" + NIL_UUID);
+    expect(foreignLedger.status).toBe(404);
+    expect(foreignLedger.body.error.message).toBe(missingLedger.body.error.message);
+    const foreignEntry = await a.get("/api/ledger/entries/" + bEntry.id);
+    const missingEntry = await a.get("/api/ledger/entries/" + NIL_UUID);
+    expect(foreignEntry.status).toBe(404);
+    expect(foreignEntry.body.error.message).toBe(missingEntry.body.error.message);
+    for (const res of [foreignLedger, foreignEntry]) {
+      expect(JSON.stringify(res.body)).not.toMatch(/Zorblax|1234\.56|7000/);
+    }
+  });
+
+  it("cannot void, correct or edit B’s entries, and B’s books do not change", async () => {
+    const before = await bLedgerState();
+    const attempts = [
+      await a.post("/api/ledger/entries/" + bEntry.id + "/void", { reason: "attack on another business" }),
+      await a.post("/api/ledger/entries/" + bEntry.id + "/correct", { amount: "1", reason: "attack on another business" }),
+      await a.patch("/api/ledger/entries/" + bEntry2.id, { description: "defaced" }),
+    ];
+    expect(attempts.map((r) => r.status)).toEqual([404, 404, 404]);
+    expect(await bLedgerState()).toEqual(before);
+  });
+
+  it("cannot post into B’s contact, however the request is phrased", async () => {
+    const before = await bLedgerState();
+    const post = (extra = {}) => a.post("/api/ledger/entries", { contactId: bContact.id, txnDate: "2025-08-05", direction: "you_gave", amount: "1", ...extra });
+    expect((await post()).status).toBe(404);
+    expect((await post({ businessId: b.businessId })).status).toBe(400);
+    expect((await post({ business_id: b.businessId })).status).toBe(400);
+    expect(await bLedgerState()).toEqual(before);
+    expect((await pool.query("SELECT 1 FROM transactions WHERE business_id = $1 AND contact_id = $2", [a.businessId, bContact.id])).rowCount).toBe(0);
+  });
+
+  it("cannot set, replace or remove an opening balance on B’s contact", async () => {
+    const before = await bLedgerState();
+    expect((await a.put("/api/contacts/" + bContact.id + "/opening-balance", { amount: "1", side: "i_owe_them" })).status).toBe(404);
+    expect((await a.delete("/api/contacts/" + bContact.id + "/opening-balance")).status).toBe(404);
+    expect(await bLedgerState()).toEqual(before);
+  });
+
+  it("never lists B’s entries, whatever filter is used, and never counts them", async () => {
+    const own = await a.get("/api/ledger/entries?status=all&pageSize=200");
+    expect(own.body.data.every((e) => e.contact.id === aContact.id)).toBe(true);
+    expect(JSON.stringify(own.body)).not.toMatch(/Zorblax|1234\.56/);
+    const byForeignContact = await a.get("/api/ledger/entries?contactId=" + bContact.id + "&status=all");
+    expect(byForeignContact.body.data).toEqual([]);
+    expect(byForeignContact.body.meta.total).toBe(0);
+    const bySearch = await a.get("/api/ledger/entries?status=all&q=Zorblax");
+    expect(bySearch.body.data).toEqual([]);
+    expect((await a.get("/api/ledger/entries?business_id=" + b.businessId)).status).toBe(400);
+  });
+
+  it("balances in A’s contact list contain only A’s money", async () => {
+    const list = (await a.get("/api/contacts?archived=all")).body.data;
+    expect(list.map((c) => c.id)).toContain(aContact.id);
+    expect(list.map((c) => c.id)).not.toContain(bContact.id);
+    expect(list.find((c) => c.id === aContact.id).balance).toEqual({ amount: "50.00", side: "receivable" });
+    expect(JSON.stringify(list)).not.toMatch(/7000|1234\.56|Zorblax/);
+    expect((await a.get("/api/contacts/" + bContact.id)).status).toBe(404);
+  });
+
+  it("each business numbers its own entries; one business’s counter reveals nothing about the other", async () => {
+    const aRef = (await a.post("/api/ledger/entries", { contactId: aContact.id, txnDate: "2025-08-04", direction: "you_gave", amount: "1" })).body.data.referenceNo;
+    const aSeq = Number(aRef.slice(-4));
+    const bSeq = Number(bEntry2.referenceNo.slice(-4));
+    expect(aRef.startsWith("LE-")).toBe(true);
+    expect(aSeq).toBe(2); // A has made exactly two entries in this fiscal year, regardless of B’s activity
+    expect(bSeq).toBe(2);
+  });
+
+  it("a member of A who is only a viewer in B cannot post in B, and sees B’s books only while B is selected", async () => {
+    const dual2 = await createMemberSession(app, pool, { businessId: a.businessId, roleKey: "staff", label: "dual-ledger" });
+    await pool.query("INSERT INTO business_users (business_id, user_id, role_id) VALUES ($1, $2, (SELECT id FROM roles WHERE key = \x27viewer\x27))", [b.businessId, dual2.user.id]);
+    const session = await loginUser(app, { email: dual2.email });
+    await session.post("/api/auth/active-business", { businessId: b.businessId });
+    expect((await session.get("/api/ledger/contacts/" + bContact.id)).status).toBe(200);
+    expect((await session.post("/api/ledger/entries", { contactId: bContact.id, txnDate: "2025-08-05", direction: "you_gave", amount: "1" })).status).toBe(403);
+    expect((await session.get("/api/ledger/contacts/" + aContact.id)).status).toBe(404);
+    await session.post("/api/auth/active-business", { businessId: a.businessId });
+    expect((await session.get("/api/ledger/contacts/" + bContact.id)).status).toBe(404);
+  });
+
+  it("a deactivated member reads no ledger at all", async () => {
+    const leaver = await createMemberSession(app, pool, { businessId: a.businessId, roleKey: "accountant", label: "ledger-leaver" });
+    expect((await leaver.get("/api/ledger/contacts/" + aContact.id)).status).toBe(200);
+    await pool.query("UPDATE business_users SET status = \x27deactivated\x27, deactivated_at = now() WHERE id = $1", [leaver.membershipId]);
+    for (const res of [await leaver.get("/api/ledger/contacts/" + aContact.id), await leaver.get("/api/ledger/entries"), await leaver.post("/api/ledger/entries", { contactId: aContact.id, txnDate: "2025-08-05", direction: "you_gave", amount: "1" })]) {
+      expect(res.status).toBe(409);
+    }
+  });
+
+  it("every ledger action of A is audited under Business A only", async () => {
+    const { rows } = await pool.query(
+      "SELECT DISTINCT business_id FROM audit_logs WHERE action LIKE \x27ledger.%\x27 AND actor_user_id = $1", [a.user.id]);
+    expect(rows).toEqual([{ business_id: a.businessId }]);
+    const bLogs = await pool.query("SELECT 1 FROM audit_logs WHERE business_id = $1 AND actor_user_id = $2", [b.businessId, a.user.id]);
+    expect(bLogs.rowCount).toBe(0);
+  });
+});

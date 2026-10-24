@@ -6,6 +6,7 @@
   "exports": {
     "./permissions": "./permissions.js",
     "./money": "./money.js",
+    "./ledger": "./ledger.js",
     "./dates": "./dates.js"
   },
   "dependencies": {

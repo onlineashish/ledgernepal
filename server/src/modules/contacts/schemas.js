@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { openingBalanceBody } from '../ledger/schemas.js';
 
 export const CONTACT_TYPES = ['customer', 'supplier', 'partner'];
 
@@ -44,7 +45,8 @@ const fields = {
   notes: optionalText('Notes', 2000),
 };
 
-export const createContactBody = z.strictObject({ name, types, ...fields });
+// An opening balance can be entered together with a new contact (needs ledger.create too).
+export const createContactBody = z.strictObject({ name, types, ...fields, openingBalance: openingBalanceBody.optional() });
 
 export const updateContactBody = z
   .strictObject({ name: name.optional(), types: types.optional(), ...fields })

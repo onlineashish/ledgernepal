@@ -10,7 +10,7 @@
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
 | 3. Authentication & authorization | ✅ Done (3a–3e). 646 automated tests passing (shared 119, server 422, client 105). Branch `phase3-auth`, ready to merge. |
-| 4. Core business features | ⚪ Not started |
+| 4. Core business features | 🟡 In progress — 4a (ledger engine) done on branch `phase4-ledger`; 4b contacts & ledger screens next |
 | 5. Hardening | ⚪ Not started |
 
 Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests passing)
@@ -131,8 +131,15 @@ Known gaps / later: Settings UI for per-member permission overrides and ownershi
 
 ## Phase 4 — Core business features
 
-- [ ] Contacts
-- [ ] Direct ledger entries + contact ledger
+- [x] **4a Ledger engine (server)** — accounting rules, transactions table, direct entries, opening balances, contact ledger, balances
+  - **Rules written first:** `docs/accounting-conventions.md` (Dr/Cr = they owe you more/less; balance = debits − credits; "You gave" = debit, "You got" = credit; opening balance is a normal transaction; posted entries immutable; void/correct; running-balance ordering; reference numbers; money; dates). Shared vocabulary in `shared/ledger.js`.
+  - **Database (migration 005):** `transactions` (all six types and three statuses; fixed debit/credit per type; positive amounts; composite foreign keys so a transaction can only reference a contact of its own business; unique numbers per business and type; one active opening balance per contact) and `document_sequences`. A trigger makes posted rows immutable (only description, notes and external reference may change; voiding is allowed; voided rows are frozen; no deletes), enforced even against direct SQL.
+  - **Reference numbers** like `LE-2082/83-0001`: business prefix + fiscal year of the transaction date + counter, allocated inside the saving transaction (no duplicates under concurrency, not used up by a failed save).
+  - **API:** `GET/POST /api/ledger/entries`, `GET/PATCH /api/ledger/entries/:id`, `POST …/void` (reason required), `POST …/correct` (void + linked replacement in one transaction), `GET /api/ledger/contacts/:contactId` (brought-forward balance, lines with debit/credit/running balance, totals, closing balance, date filter, search, pagination), `PUT/DELETE /api/contacts/:id/opening-balance`. Contacts now return `balance` (and `openingBalance` on the detail view) and accept an opening balance at creation (atomic). Balances are always calculated, never stored, and hidden from people without `ledger.view`. A first opening balance needs `ledger.create`; replacing or removing one needs `ledger.correct`.
+  - **Tests (4a):** database rules 38, ledger API 49, shared 15, plus ledger cases in the isolation suite (10) and role matrix (9 endpoints × 5 roles, 4 permission-combination cases). Whole repo **807/807** (134 shared + 568 server + 105 client), 2026-10-25. Mutation-checked: removing the business filter on ledger lookups fails isolation tests; making "You got" a debit fails the balance test.
+  - The development database now has the contacts and transactions tables (the Phase 3 contacts migration had not been applied there yet).
+  - **Not built yet:** the screens (contacts list and detail, Add Ledger Entry form, contact ledger page) and CSV/PDF/print for the ledger (planned with 4g).
+- [ ] **4b Contacts & ledger screens** (React): contacts list/search/filter/create/edit/archive, details page with balance and ledger, Add Ledger Entry from the sidebar, dashboard and contact page, BS/AD date input
 - [ ] Sales & purchases
 - [ ] Receipts & payments + allocations
 - [ ] Paid status / overdue / consistency tests

@@ -16,6 +16,7 @@ import { authRoutes } from './modules/auth/routes.js';
 import { businessRoutes } from './modules/businesses/routes.js';
 import { contactRoutes } from './modules/contacts/routes.js';
 import { invitationRoutes } from './modules/invitations/routes.js';
+import { ledgerRoutes } from './modules/ledger/routes.js';
 import { userRoutes } from './modules/users/routes.js';
 import { healthRoutes } from './modules/health/routes.js';
 
@@ -67,6 +68,7 @@ export function createApp({ config, logger, pool, clientDist, rateLimit = {}, ma
   app.use('/api', rateLimiters.api);
   mount('/api/auth', authRoutes({ config, pool, rateLimiters, guards, mailer, background }));
   mount('/api/contacts', contactRoutes({ pool, guards }));
+  mount('/api/ledger', ledgerRoutes({ pool, guards }));
   mount('/api/users', userRoutes({ config, pool, guards }));
   mount('/api/invitations', invitationRoutes({ config, pool, rateLimiters, guards }));
   mount('/api/businesses', businessRoutes({ config, pool, guards }));
