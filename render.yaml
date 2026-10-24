@@ -1,0 +1,28 @@
+# Render Blueprint: one Web Service serving the API and the built React app.
+# NOT YET DEPLOYED OR VERIFIED. Treat as a starting point and check on first deploy.
+services:
+  - type: web
+    name: ledgernepal
+    runtime: node
+    plan: free
+    branch: main
+    # --include=dev: the client build needs Vite/Tailwind, which are devDependencies,
+    # and Render sets NODE_ENV=production. The migration runs against Neon's direct URL;
+    # if it fails, the deploy fails and the old version keeps running.
+    buildCommand: npm ci --include=dev && npm run build && npm run db:migrate
+    startCommand: npm start
+    healthCheckPath: /api/health/ready
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY # Render terminates TLS in front of the app: trust exactly one proxy hop
+        value: 1
+      - key: APP_ORIGIN # e.g. https://ledgernepal.onrender.com (set in the dashboard)
+        sync: false
+      - key: DATABASE_URL # Neon pooled URL
+        sync: false
+      - key: DATABASE_URL_DIRECT # Neon direct URL, used only by migrations
+        sync: false

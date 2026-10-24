@@ -1,0 +1,17 @@
+{
+  "name": "@ledgernepal/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./permissions": "./permissions.js",
+    "./money": "./money.js",
+    "./dates": "./dates.js"
+  },
+  "dependencies": {
+    "@remotemerge/nepali-date-converter": "^1.2.5"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}
