@@ -6,13 +6,16 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { pinoHttp } from 'pino-http';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { originCheck, requireJson } from './middleware/security.js';
+import { createRateLimiters } from './middleware/rateLimit.js';
+import { authRoutes } from './modules/auth/routes.js';
 import { healthRoutes } from './modules/health/routes.js';
 
 /**
  * Builds the Express app without starting a server, so tests can call it
  * directly with supertest.
  */
-export function createApp({ config, logger, pool, clientDist }) {
+export function createApp({ config, logger, pool, clientDist, rateLimit = {} }) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -35,7 +38,14 @@ export function createApp({ config, logger, pool, clientDist }) {
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
+  app.use(originCheck(config));
+  app.use(requireJson);
+
   app.use('/api/health', healthRoutes({ pool }));
+
+  const rateLimiters = createRateLimiters({ ...config.rateLimit, ...rateLimit });
+  app.use('/api', rateLimiters.api);
+  app.use('/api/auth', authRoutes({ config, pool, rateLimiters }));
 
   app.use('/api', notFoundHandler);
 

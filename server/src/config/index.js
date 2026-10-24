@@ -8,6 +8,8 @@ import { z } from 'zod';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 dotenv.config({ path: path.join(repoRoot, '.env'), quiet: true });
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const postgresUrl = z
   .string()
   .regex(/^postgres(ql)?:\/\//, 'must be a postgres:// or postgresql:// connection string');
@@ -58,6 +60,22 @@ export function loadConfig(env = process.env) {
     appOrigin: e.APP_ORIGIN,
     logLevel: e.LOG_LEVEL ?? (isTest ? 'silent' : 'info'),
     trustProxy: e.TRUST_PROXY,
+    session: Object.freeze({
+      cookieName: 'ln_session',
+      idleMs: 7 * DAY_MS, // sliding: unused sessions expire after 7 days
+      absoluteMs: 30 * DAY_MS, // hard limit: log in again after 30 days
+    }),
+    auth: Object.freeze({
+      maxFailedLogins: 10, // then the account is locked for lockMs
+      lockMs: 15 * 60_000,
+    }),
+    // In-memory counters (fine for one Render instance). Tests get effectively unlimited limits;
+    // the rate-limit tests pass their own small ones.
+    rateLimit: Object.freeze(
+      isTest
+        ? { loginWindowMs: 60_000, loginMax: 100_000, loginIpWindowMs: 900_000, loginIpMax: 100_000, registerWindowMs: 3_600_000, registerMax: 100_000, apiWindowMs: 60_000, apiMax: 100_000 }
+        : { loginWindowMs: 60_000, loginMax: 5, loginIpWindowMs: 900_000, loginIpMax: 30, registerWindowMs: 3_600_000, registerMax: 10, apiWindowMs: 60_000, apiMax: 300 },
+    ),
     databaseUrl,
     // Migrations need a direct (non-pooler) connection; fall back to the main URL.
     migrationDatabaseUrl: isTest ? e.TEST_DATABASE_URL : (e.DATABASE_URL_DIRECT ?? e.DATABASE_URL),

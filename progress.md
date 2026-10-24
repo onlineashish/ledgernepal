@@ -9,7 +9,7 @@
 |---|---|
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
-| 3. Authentication & authorization | ⚪ Not started |
+| 3. Authentication & authorization | 🟡 In progress — 3a done (branch `phase3-auth`); 3b permissions + isolation tests, 3c members/invites, 3d React login, 3e password reset remaining |
 | 4. Core business features | ⚪ Not started |
 | 5. Hardening | ⚪ Not started |
 
@@ -69,9 +69,23 @@ Known gaps / things to verify later: UI not yet reviewed by eye in a browser; CI
 
 ## Phase 3 — Authentication & authorization
 
-- [ ] Register / login / logout / me / CSRF / rate limits
-- [ ] Sessions, revocation, suspension, active-business switch
-- [ ] Business context + permission middleware + route-guard coverage test
+- [x] **3a** Register / login / logout / `me` / CSRF / rate limits / lockout / audit (`/api/auth/*`, `server/src/modules/auth`):
+  - Argon2id hashing (19 MiB, 2 passes), password rules (10–128 chars, common-password list, not equal to email/name), timing-equalised unknown-email check
+  - Server-side sessions: random cookie token (only its SHA-256 stored), HttpOnly + SameSite=Lax + `Path=/api` (+ Secure in production), 7-day idle / 30-day absolute expiry, revoked on logout and on suspension
+  - CSRF: per-session token in `X-CSRF-Token` on every state-changing request, plus Origin check and JSON-only bodies
+  - Rate limits (in memory): 5 failed logins/min per IP+email, 30/15 min per IP, 10 registrations/hour, 300 API calls/min; account lock after 10 failures for 15 min (generic error, never reveals the lock)
+  - Registration creates user + business + settings + Owner membership + session in one transaction; unknown body fields (e.g. `isPlatformAdmin`, `role`) are rejected
+  - Active business lives on the session; switching verifies an active membership in an active business, and "not found / not a member / suspended" all return the same 404
+  - `loadBusinessContext` computes effective permissions (role + grants − denies; Owner always all) in one query per request
+  - Audit events: register, business.create, login, login_failed, login_blocked, account_locked, logout, switch_business
+  - **Tests (3a):** server 112/112 (44 auth integration + unit tests for passwords, tokens, permission resolution); whole repo 245/245 (2026-10-24). A test caught a real bug (lockout never triggered because of a config/SQL name mismatch) — fixed.
+- [ ] **3b** `requirePermission` + route-guard coverage test + minimal contacts CRUD as isolation test subject + cross-tenant and RBAC-matrix suites
+- [ ] **3c** Members, invitations, role changes, overrides, rank rules, ownership transfer
+- [ ] **3d** Frontend auth flow (login, register, business picker, protected routes)
+- [ ] **3e** Password reset / change password / session list (nodemailer, console transport in dev)
+- Note: duplicate-email registration returns 409 (reveals that the email exists). Accepted trade-off for usability; mitigated by the registration rate limit.
+- Note: no platform administrator account can be created yet (admin module comes with Phase 4/5); `is_platform_admin` can only be set directly in the database.
+- [ ] (old item) Business context + permission middleware + route-guard coverage test → see 3b
 - [ ] Members, invitations, roles, overrides, rank rules
 - [ ] Frontend auth flow + protected routes
 - [ ] Cross-tenant isolation + RBAC matrix test suites passing
