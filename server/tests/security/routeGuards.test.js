@@ -12,6 +12,9 @@ const PUBLIC_ROUTES = [
   'GET /api/health/ready',
   'POST /api/auth/register',
   'POST /api/auth/login',
+  // Invitation links are used by people without an account; the unguessable token is the credential.
+  'POST /api/invitations/preview',
+  'POST /api/invitations/accept-new',
 ];
 
 // Routes that need a login (and CSRF) but are about the user's own account, not business data.
@@ -19,7 +22,11 @@ const ACCOUNT_ROUTES = [
   'GET /api/auth/me',
   'POST /api/auth/logout',
   'POST /api/auth/active-business',
+  'POST /api/invitations/accept',
 ];
+
+// Owner-exclusive actions (not grantable permissions).
+const OWNER_ROUTES = ['POST /api/businesses/current/transfer-ownership'];
 
 function collectRoutes() {
   const routes = [];
@@ -57,7 +64,7 @@ describe('route guard coverage', () => {
   });
 
   it('the public allow-list and account list contain no stale entries', () => {
-    for (const key of [...PUBLIC_ROUTES, ...ACCOUNT_ROUTES]) {
+    for (const key of [...PUBLIC_ROUTES, ...ACCOUNT_ROUTES, ...OWNER_ROUTES]) {
       expect(byKey[key], `${key} is allow-listed but does not exist`).toBeDefined();
     }
   });
@@ -68,6 +75,7 @@ describe('route guard coverage', () => {
   });
 
   it('every non-public route authenticates first, loads the business, and checks CSRF', () => {
+    // (This also covers the invitation "accept" route: logged in, CSRF-checked.)
     for (const route of routes.filter((r) => !PUBLIC_ROUTES.includes(r.key))) {
       const order = route.guards;
       expect(order.slice(0, 3), route.key).toEqual(['authenticate', 'business', 'csrf']);
@@ -75,11 +83,19 @@ describe('route guard coverage', () => {
   });
 
   it('every business-data route requires at least one permission, after the business is loaded', () => {
-    const businessRoutes = routes.filter((r) => !PUBLIC_ROUTES.includes(r.key) && !ACCOUNT_ROUTES.includes(r.key));
+    const businessRoutes = routes.filter(
+      (r) => ![...PUBLIC_ROUTES, ...ACCOUNT_ROUTES, ...OWNER_ROUTES].includes(r.key),
+    );
     expect(businessRoutes.length).toBeGreaterThan(0);
     for (const route of businessRoutes) {
       expect(route.guards, route.key).toEqual(['authenticate', 'business', 'csrf', 'permission']);
       expect(route.permissions.length, route.key).toBeGreaterThan(0);
+    }
+  });
+
+  it('owner-exclusive routes check the owner after the business is loaded', () => {
+    for (const key of OWNER_ROUTES) {
+      expect(byKey[key].guards, key).toEqual(['authenticate', 'business', 'csrf', 'owner']);
     }
   });
 

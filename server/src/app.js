@@ -10,7 +10,10 @@ import { originCheck, requireJson } from './middleware/security.js';
 import { createRateLimiters } from './middleware/rateLimit.js';
 import { createGuards } from './middleware/guards.js';
 import { authRoutes } from './modules/auth/routes.js';
+import { businessRoutes } from './modules/businesses/routes.js';
 import { contactRoutes } from './modules/contacts/routes.js';
+import { invitationRoutes } from './modules/invitations/routes.js';
+import { userRoutes } from './modules/users/routes.js';
 import { healthRoutes } from './modules/health/routes.js';
 
 /**
@@ -57,6 +60,9 @@ export function createApp({ config, logger, pool, clientDist, rateLimit = {} }) 
   app.use('/api', rateLimiters.api);
   mount('/api/auth', authRoutes({ config, pool, rateLimiters, guards }));
   mount('/api/contacts', contactRoutes({ pool, guards }));
+  mount('/api/users', userRoutes({ config, pool, guards }));
+  mount('/api/invitations', invitationRoutes({ config, pool, rateLimiters, guards }));
+  mount('/api/businesses', businessRoutes({ config, pool, guards }));
 
   app.use('/api', notFoundHandler);
 

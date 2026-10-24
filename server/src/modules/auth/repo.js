@@ -21,6 +21,11 @@ export async function findUserByEmail(db, email) {
   return rows[0] ?? null;
 }
 
+export async function getPasswordHash(db, userId) {
+  const { rows } = await db.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+  return rows[0]?.password_hash ?? null;
+}
+
 /** Counts a failed password attempt and locks the account once the limit is reached. */
 export async function recordFailedLogin(db, userId, { maxFailedLogins, lockMs }) {
   const { rows } = await db.query(

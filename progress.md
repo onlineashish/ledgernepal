@@ -9,7 +9,7 @@
 |---|---|
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
-| 3. Authentication & authorization | 🟡 In progress — 3a, 3b done (branch `phase3-auth`); 3c members/invites, 3d React login, 3e password reset remaining |
+| 3. Authentication & authorization | 🟡 In progress — 3a, 3b, 3c done (branch `phase3-auth`); 3d React login, 3e password reset remaining |
 | 4. Core business features | ⚪ Not started |
 | 5. Hardening | ⚪ Not started |
 
@@ -88,7 +88,13 @@ Known gaps / things to verify later: UI not yet reviewed by eye in a browser; CI
   - **RBAC matrix** (`tests/security/rbacMatrix.test.js`): 5 roles × 6 endpoints generated from `shared/permissions.js`; denied calls are 403 and change nothing; overrides (grant, deny, owner immune, live without re-login); `/me` permissions equal what the server enforces.
   - **Tests (3b):** server 237/237, whole repo 370/370 (119 shared + 237 server + 14 client), 2026-10-24.
   - Honest limits: RBAC/isolation is proven for the contacts module only; every future module must add its endpoints to the matrix and isolation tests (the coverage test forces guards, not tests). Tests run against the real Neon database, so the full suite takes ~2–3 minutes.
-- [ ] **3c** Members, invitations, role changes, overrides, rank rules, ownership transfer
+- [x] **3c** Members, invitations (link only, no email), role changes, overrides, rank rules, ownership transfer
+  - **Decision:** no email for invitations (no domain). The inviter receives a one-time link (`<APP_ORIGIN>/accept-invite?token=…`) to copy and share, e.g. on WhatsApp. Only a SHA-256 hash of the token is stored, so the link cannot be shown again; if lost, revoke and re-invite. Links last 7 days. The token travels in POST bodies, never in URLs (keeps it out of access logs).
+  - Rules (`server/src/lib/memberRules.js`, pure + unit-tested): roles can only be assigned below your own rank; you can only manage members ranked below you; never yourself, never the owner; "owner" is not an assignable role (only transfer-ownership); overrides can only newly grant permissions the giver holds, `users.manage` only by the owner; lifting a deny counts as granting; a role change wipes the member's old overrides unless new ones are sent in the same request; denies are always allowed.
+  - API: `GET /api/users`, `GET /api/users/:membershipId`, `PATCH /api/users/:membershipId` (roleKey and/or complete overrides list), `POST …/deactivate`, `POST …/reactivate`, `GET/POST /api/users/invitations`, `DELETE /api/users/invitations/:id`; public `POST /api/invitations/preview` and `POST /api/invitations/accept-new`; logged-in `POST /api/invitations/accept` (account email must match the invitation; a removed member who returns gets the invited role, no old overrides); owner-only `POST /api/businesses/current/transfer-ownership` (password re-entry, wrong password counts toward lockout, row-locked swap so exactly one active owner always exists).
+  - New guard `guards.owner` for owner-exclusive actions; route-coverage test extended (public, account and owner lists); invitation endpoints rate-limited (20/15 min per IP).
+  - **Tests (3c):** unit 24 (member rules); integration 33 (members, overrides, deactivation, cross-business, ownership) + 29 (invitations); RBAC matrix extended to all 8 new endpoints × 5 roles; whole repo **499/499** (119 shared + 366 server + 14 client), 2026-10-24. Mutation-checked: weakening the rank rule fails 4 tests across unit and integration.
+  - Known limits: an invitation link is a bearer secret — anyone holding it AND an account with the matching email (or who signs up through it) can join, so share it only with the invitee. Emails are not verified, so "matching email" is a sanity check, not proof of identity.
 - [ ] **3d** Frontend auth flow (login, register, business picker, protected routes)
 - [ ] **3e** Password reset / change password / session list (nodemailer, console transport in dev)
 - Note: duplicate-email registration returns 409 (reveals that the email exists). Accepted trade-off for usability; mitigated by the registration rate limit.

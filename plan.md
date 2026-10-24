@@ -37,7 +37,7 @@ LedgerNepal is a multi-tenant web application that works as a digital *bahi-khat
 | Logging | `pino` + `pino-http` (passwords, tokens, and cookies redacted) | Structured logs with a request ID |
 | Money math | Integer **paisa** arithmetic in JS (`BigInt`-safe helpers), `NUMERIC(14,2)` in the DB | No floating point anywhere |
 | BS↔AD dates | `nepali-date-converter` (npm), wrapped in our own `lib/dates` module | Well-used library. It will be wrapped and checked against a test table of known dates (leap years, month lengths, year boundaries). If it fails, we replace it behind the same interface. |
-| Email (invites, reset) | `nodemailer` over SMTP. In development, the console transport or a local Mailpit. | No paid service required |
+| Email | **None for invitations** (decided 2026-10-24): the inviter gets a one-time link to copy and share (e.g. WhatsApp). Password reset needs a delivery channel and is decided in step 3e. Note: Render's free tier blocks outbound SMTP, so if email is added later it must use a provider's HTTPS API (e.g. Brevo, which needs no domain), not `nodemailer` over SMTP. | No domain, no paid service |
 | Tests | `vitest` + `supertest`, against a real PostgreSQL test database | Proves real constraints, transactions, and isolation |
 | Frontend | React + Vite + JavaScript + React Router | Required |
 | Data fetching | `@tanstack/react-query` | Handles caching and loading/error states consistently |
@@ -838,7 +838,7 @@ Each step ends with:
 4. Members, invitations, role changes, overrides, rank rules, owner transfer
 5. Frontend: auth pages, `ProtectedRoute`, `RequirePermission`, business switcher
 6. Contacts minimal CRUD (needed as test subject) → **cross-tenant and RBAC suites written and passing before any money feature**
-7. Password reset (nodemailer, console transport in dev)
+7. Password reset (delivery channel to be decided in 3e: no domain, so no email-from-own-domain; see progress.md)
 
 ### Phase 4 — Core business features
 1. Contacts (full): search, filters, archive, details page, opening balance

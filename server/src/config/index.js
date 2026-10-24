@@ -73,8 +73,8 @@ export function loadConfig(env = process.env) {
     // the rate-limit tests pass their own small ones.
     rateLimit: Object.freeze(
       isTest
-        ? { loginWindowMs: 60_000, loginMax: 100_000, loginIpWindowMs: 900_000, loginIpMax: 100_000, registerWindowMs: 3_600_000, registerMax: 100_000, apiWindowMs: 60_000, apiMax: 100_000 }
-        : { loginWindowMs: 60_000, loginMax: 5, loginIpWindowMs: 900_000, loginIpMax: 30, registerWindowMs: 3_600_000, registerMax: 10, apiWindowMs: 60_000, apiMax: 300 },
+        ? { loginWindowMs: 60_000, loginMax: 100_000, loginIpWindowMs: 900_000, loginIpMax: 100_000, registerWindowMs: 3_600_000, registerMax: 100_000, invitationWindowMs: 900_000, invitationMax: 100_000, apiWindowMs: 60_000, apiMax: 100_000 }
+        : { loginWindowMs: 60_000, loginMax: 5, loginIpWindowMs: 900_000, loginIpMax: 30, registerWindowMs: 3_600_000, registerMax: 10, invitationWindowMs: 900_000, invitationMax: 20, apiWindowMs: 60_000, apiMax: 300 },
     ),
     databaseUrl,
     // Migrations need a direct (non-pooler) connection; fall back to the main URL.

@@ -11,14 +11,14 @@ const invalidCredentials = () =>
 
 const PG_UNIQUE_VIOLATION = '23505';
 
-const publicUser = (row) => ({
+export const publicUser = (row) => ({
   id: row.id,
   email: row.email,
   fullName: row.full_name,
   isPlatformAdmin: row.is_platform_admin,
 });
 
-async function startSession(db, { config, req, userId, activeBusinessId }) {
+export async function startSession(db, { config, req, userId, activeBusinessId }) {
   const token = generateToken();
   const csrfToken = generateToken();
   const { id: sessionId } = await repo.insertSession(db, {

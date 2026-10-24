@@ -24,6 +24,8 @@ export function createRateLimiters(settings) {
     // Slows one address trying many accounts.
     loginIp: make({ windowMs: settings.loginIpWindowMs, limit: settings.loginIpMax, keyGenerator: byIp, skipSuccessfulRequests: true }),
     register: make({ windowMs: settings.registerWindowMs, limit: settings.registerMax, keyGenerator: byIp }),
+    // Public invitation endpoints (preview / sign up with an invitation link).
+    invitation: make({ windowMs: settings.invitationWindowMs, limit: settings.invitationMax, keyGenerator: byIp }),
     // Generous ceiling on everything under /api.
     api: make({ windowMs: settings.apiWindowMs, limit: settings.apiMax, keyGenerator: byIp }),
   };

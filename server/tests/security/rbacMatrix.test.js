@@ -31,6 +31,15 @@ const archivedContact = async () => {
   return c;
 };
 
+const newMember = () => createMemberSession(app, pool, { businessId: owner.businessId, roleKey: 'staff', label: 'target' });
+const deactivatedMember = async () => {
+  const member = await newMember();
+  await owner.post(`/api/users/${member.membershipId}/deactivate`);
+  return member;
+};
+const newInvitation = async () =>
+  (await owner.post('/api/users/invitations', { email: `pending-${Math.random().toString(36).slice(2, 8)}@api-test.example`, roleKey: 'viewer' })).body.data;
+
 // `prepare` creates whatever the call needs, using the owner, so the role under test only makes the one call.
 const ENDPOINTS = [
   { name: 'GET /contacts', permission: 'contacts.view', okStatus: 200, call: (s) => s.get('/api/contacts') },
@@ -39,6 +48,17 @@ const ENDPOINTS = [
   { name: 'PATCH /contacts/:id', permission: 'contacts.update', okStatus: 200, prepare: newContact, call: (s, c) => s.patch(`/api/contacts/${c.id}`, { notes: 'edited' }) },
   { name: 'POST /contacts/:id/archive', permission: 'contacts.archive', okStatus: 200, prepare: newContact, call: (s, c) => s.post(`/api/contacts/${c.id}/archive`) },
   { name: 'POST /contacts/:id/unarchive', permission: 'contacts.archive', okStatus: 200, prepare: archivedContact, call: (s, c) => s.post(`/api/contacts/${c.id}/unarchive`) },
+
+  // Members and invitations. Targets are fresh Staff members / Viewer invitations, which every role that
+  // holds the permission is also senior enough to manage, so the permission is the only variable.
+  { name: 'GET /users', permission: 'users.view', okStatus: 200, call: (s) => s.get('/api/users') },
+  { name: 'GET /users/:id', permission: 'users.view', okStatus: 200, prepare: newMember, call: (s, m) => s.get(`/api/users/${m.membershipId}`) },
+  { name: 'GET /users/invitations', permission: 'users.view', okStatus: 200, call: (s) => s.get('/api/users/invitations') },
+  { name: 'POST /users/invitations', permission: 'users.invite', okStatus: 201, call: (s) => s.post('/api/users/invitations', { email: `inv-${Math.random().toString(36).slice(2, 8)}@api-test.example`, roleKey: 'viewer' }) },
+  { name: 'DELETE /users/invitations/:id', permission: 'users.invite', okStatus: 200, prepare: newInvitation, call: (s, i) => s.delete(`/api/users/invitations/${i.id}`) },
+  { name: 'PATCH /users/:id', permission: 'users.manage', okStatus: 200, prepare: newMember, call: (s, m) => s.patch(`/api/users/${m.membershipId}`, { overrides: [] }) },
+  { name: 'POST /users/:id/deactivate', permission: 'users.manage', okStatus: 200, prepare: newMember, call: (s, m) => s.post(`/api/users/${m.membershipId}/deactivate`) },
+  { name: 'POST /users/:id/reactivate', permission: 'users.manage', okStatus: 200, prepare: deactivatedMember, call: (s, m) => s.post(`/api/users/${m.membershipId}/reactivate`) },
 ];
 
 describe.each(ROLE_KEYS)('role: %s', (roleKey) => {
