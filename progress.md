@@ -8,7 +8,7 @@
 | Phase | Status |
 |---|---|
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
-| 2. Project foundation | ⚪ Not started |
+| 2. Project foundation | 🟡 In progress — step 2a done (branch `phase2-foundation`) |
 | 3. Authentication & authorization | ⚪ Not started |
 | 4. Core business features | ⚪ Not started |
 | 5. Hardening | ⚪ Not started |
@@ -41,11 +41,12 @@ Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests 
 ## Phase 2 — Project foundation
 
 - [x] `.env` (Neon URLs, git-ignored), `.env.example`, `.gitignore`
-- [ ] WSL prerequisites (Node LTS via nvm, git); Neon `test` branch created and URL put in `TEST_DATABASE_URL`
-- [ ] git init, npm workspaces, GitHub repo + first push
-- [ ] Express skeleton, config validation, logging, security middleware, error handler
-- [ ] Health endpoints
-- [ ] pg pool + transaction helper
+- [x] WSL prerequisites (Node 22.23.3 via nvm, git); Neon `test` branch in `TEST_DATABASE_URL`
+- [x] git init, GitHub repo (`onlineashish/ledgernepal`) + first push; npm workspaces (`server`)
+- [x] Express 5 skeleton, zod config validation (fail-fast, test DB guard), pino logging with redaction, helmet, CORS allow-list, centralized error handler
+- [x] Health endpoints: `/api/health`, `/api/health/ready`
+- [x] pg pool + `withTransaction` helper; `npm run db:check` (all 3 Neon URLs connect, `sslmode=verify-full`)
+- **Step 2a tests:** 18/18 passing (`npm test`, 2026-10-24) — config (7), error handler (3), health/errors/CORS integration (8)
 - [ ] Migrations (identity, tenancy, RBAC, audit)
 - [ ] Role/permission seed
 - [ ] Test harness (vitest + supertest + test DB)
