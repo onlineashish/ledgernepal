@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ROLE_KEYS, ROLE_PERMISSIONS } from '@ledgernepal/shared/permissions';
 import { createTestApp } from '../helpers/testApp.js';
-import { cleanupApiTestData, createMemberSession, registerUser } from '../helpers/api.js';
+import { cleanupApiTestData, createMemberSession, registerUser, uniqueEmail } from '../helpers/api.js';
 
 // For every role and every contact endpoint: allowed if and only if the role's default
 // permissions (shared/permissions.js, the same file the database is seeded from) include it.
@@ -38,7 +38,7 @@ const deactivatedMember = async () => {
   return member;
 };
 const newInvitation = async () =>
-  (await owner.post('/api/users/invitations', { email: `pending-${Math.random().toString(36).slice(2, 8)}@api-test.example`, roleKey: 'viewer' })).body.data;
+  (await owner.post('/api/users/invitations', { email: uniqueEmail('pending'), roleKey: 'viewer' })).body.data;
 
 // `prepare` creates whatever the call needs, using the owner, so the role under test only makes the one call.
 const ENDPOINTS = [
@@ -54,7 +54,7 @@ const ENDPOINTS = [
   { name: 'GET /users', permission: 'users.view', okStatus: 200, call: (s) => s.get('/api/users') },
   { name: 'GET /users/:id', permission: 'users.view', okStatus: 200, prepare: newMember, call: (s, m) => s.get(`/api/users/${m.membershipId}`) },
   { name: 'GET /users/invitations', permission: 'users.view', okStatus: 200, call: (s) => s.get('/api/users/invitations') },
-  { name: 'POST /users/invitations', permission: 'users.invite', okStatus: 201, call: (s) => s.post('/api/users/invitations', { email: `inv-${Math.random().toString(36).slice(2, 8)}@api-test.example`, roleKey: 'viewer' }) },
+  { name: 'POST /users/invitations', permission: 'users.invite', okStatus: 201, call: (s) => s.post('/api/users/invitations', { email: uniqueEmail('inv'), roleKey: 'viewer' }) },
   { name: 'DELETE /users/invitations/:id', permission: 'users.invite', okStatus: 200, prepare: newInvitation, call: (s, i) => s.delete(`/api/users/invitations/${i.id}`) },
   { name: 'PATCH /users/:id', permission: 'users.manage', okStatus: 200, prepare: newMember, call: (s, m) => s.patch(`/api/users/${m.membershipId}`, { overrides: [] }) },
   { name: 'POST /users/:id/deactivate', permission: 'users.manage', okStatus: 200, prepare: newMember, call: (s, m) => s.post(`/api/users/${m.membershipId}/deactivate`) },

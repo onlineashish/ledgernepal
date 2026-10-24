@@ -42,6 +42,17 @@ npm run db:migrate:down  # revert the most recent migration (one step)
 npm run db:status        # list applied migrations
 ```
 
+## Writing server tests
+
+Server test files run **in parallel** against one real Neon test branch, which is what keeps the suite at
+about a minute and a half instead of five. That works because every file creates and removes only its own
+data (each file gets its own e-mail domain, see `server/tests/helpers/api.js`). So in a test:
+
+- create users with `registerUser` / `createMemberSession` / `uniqueEmail`, never fixed e-mail addresses;
+- never assert on table-wide counts (`SELECT count(*) FROM businesses`) or delete other files' rows; scope by
+  ids or unique names you created;
+- add every new business endpoint to the role matrix and cross-business isolation tests.
+
 ## Email (optional)
 
 Invitations never use email: the inviter copies a link and shares it (e.g. on WhatsApp).

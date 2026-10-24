@@ -3,7 +3,10 @@ import request from 'supertest';
 import { hashPassword } from '../../src/lib/password.js';
 
 export const TEST_PASSWORD = 'correct horse battery staple';
-export const TEST_EMAIL_DOMAIN = 'api-test.example';
+// Every test FILE gets its own e-mail domain (this module is loaded afresh per file), so files can run
+// in parallel: each one creates and cleans up only its own users. A crashed run's leftovers are swept
+// by globalSetup (anything under *.api-test.example).
+export const TEST_EMAIL_DOMAIN = `f${randomUUID().slice(0, 8)}.api-test.example`;
 
 export const uniqueEmail = (label = 'user') => `${label}-${randomUUID().slice(0, 8)}@${TEST_EMAIL_DOMAIN}`;
 

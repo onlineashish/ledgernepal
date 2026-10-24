@@ -81,13 +81,15 @@ describe('POST /api/auth/register', () => {
   });
 
   it('does not leave a half-created account behind when it fails', async () => {
-    const before = (await pool.query('SELECT count(*)::int AS n FROM businesses')).rows[0].n;
     const email = uniqueEmail();
+    const orphanName = `Orphan Co ${email}`; // unique to this test, so other test files cannot interfere
     await registerUser(app, { email });
-    await request(app).post('/api/auth/register').send({ fullName: 'X', email, password: TEST_PASSWORD, businessName: 'Orphan Co' });
-    const after = (await pool.query('SELECT count(*)::int AS n FROM businesses')).rows[0].n;
-    expect(after).toBe(before + 1); // only the first registration's business exists
-    expect((await pool.query("SELECT 1 FROM businesses WHERE name = 'Orphan Co'")).rowCount).toBe(0);
+    const second = await request(app).post('/api/auth/register').send({ fullName: 'X', email, password: TEST_PASSWORD, businessName: orphanName });
+    expect(second.status).toBe(409);
+    // the failed registration rolled back completely: no business, no stray membership or session
+    expect((await pool.query('SELECT 1 FROM businesses WHERE name = $1', [orphanName])).rowCount).toBe(0);
+    const owned = await pool.query('SELECT count(*)::int AS n FROM business_users bu JOIN users u ON u.id = bu.user_id WHERE u.email = $1', [email]);
+    expect(owned.rows[0].n).toBe(1); // only the first registration's membership
   });
 
   it.each([
