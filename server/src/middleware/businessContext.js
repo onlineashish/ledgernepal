@@ -52,7 +52,7 @@ export async function loadBusinessContext(db, userId, businessId) {
  * Must run after authenticate.
  */
 export function businessContext({ pool }) {
-  return async (req, _res, next) => {
+  const guard = async (req, _res, next) => {
     req.business = null;
     const businessId = req.auth.activeBusinessId;
     if (businessId) {
@@ -64,4 +64,6 @@ export function businessContext({ pool }) {
     }
     next();
   };
+  guard.guard = 'business'; // marker read by the route-coverage test
+  return guard;
 }

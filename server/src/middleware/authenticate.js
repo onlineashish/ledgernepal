@@ -10,7 +10,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  * idle, or suspended-user sessions are refused on the very next request.
  */
 export function authenticate({ config, pool }) {
-  return async (req, _res, next) => {
+  const guard = async (req, _res, next) => {
     const token = req.cookies?.[config.session.cookieName];
     if (typeof token !== 'string' || token.length === 0 || token.length > 200) return next(unauthenticated());
 
@@ -37,6 +37,8 @@ export function authenticate({ config, pool }) {
     };
     return next();
   };
+  guard.guard = 'authenticate'; // marker read by the route-coverage test
+  return guard;
 }
 
 /** Synchronizer-token CSRF check for state-changing requests made with a session. */
@@ -47,3 +49,4 @@ export function requireCsrf(req, _res, next) {
   }
   return next();
 }
+requireCsrf.guard = 'csrf';

@@ -1,14 +1,12 @@
 import { Router } from 'express';
-import { authenticate, requireCsrf } from '../../middleware/authenticate.js';
-import { businessContext } from '../../middleware/businessContext.js';
 import { validate } from '../../middleware/validate.js';
 import { activeBusinessBody, loginBody, registerBody } from './schemas.js';
 import * as service from './service.js';
 
-export function authRoutes({ config, pool, rateLimiters }) {
+export function authRoutes({ config, pool, rateLimiters, guards }) {
   const router = Router();
   const deps = { pool, config };
-  const requireSession = [authenticate({ config, pool }), businessContext({ pool }), requireCsrf];
+  const requireSession = guards.session;
 
   // The cookie is HttpOnly (JavaScript cannot read it), Secure in production, and only sent to /api.
   const cookieOptions = { httpOnly: true, secure: config.isProduction, sameSite: 'lax', path: '/api' };

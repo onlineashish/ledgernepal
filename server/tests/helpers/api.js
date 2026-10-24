@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { hashPassword } from '../../src/lib/password.js';
 
 export const TEST_PASSWORD = 'correct horse battery staple';
 export const TEST_EMAIL_DOMAIN = 'api-test.example';
@@ -56,6 +57,38 @@ function sessionFromResponse(app, res, credentials) {
 function withBody(req, cookie, csrf, body) {
   req.set('Cookie', `ln_session=${cookie}`).set('X-CSRF-Token', csrf);
   return body === undefined ? req : req.send(body);
+}
+
+let cachedHash;
+
+/**
+ * Adds a new user to an existing business with the given role (plus optional per-member
+ * overrides) straight in the database, then logs them in through the API. Faster than
+ * registering, and members cannot be invited through the API until step 3c.
+ */
+export async function createMemberSession(app, pool, { businessId, roleKey, label = roleKey, grants = [], denies = [] }) {
+  cachedHash ??= await hashPassword(TEST_PASSWORD);
+  const email = uniqueEmail(label);
+  const user = await pool.query(
+    `INSERT INTO users (email, password_hash, full_name, password_changed_at) VALUES ($1, $2, $3, now()) RETURNING id`,
+    [email, cachedHash, `Test ${label}`],
+  );
+  const membership = await pool.query(
+    `INSERT INTO business_users (business_id, user_id, role_id)
+     VALUES ($1, $2, (SELECT id FROM roles WHERE key = $3)) RETURNING id`,
+    [businessId, user.rows[0].id, roleKey],
+  );
+  for (const [effect, keys] of [['grant', grants], ['deny', denies]]) {
+    for (const key of keys) {
+      await pool.query(
+        `INSERT INTO business_user_permission_overrides (business_id, business_user_id, permission_id, effect)
+         VALUES ($1, $2, (SELECT id FROM permissions WHERE key = $3), $4)`,
+        [businessId, membership.rows[0].id, key, effect],
+      );
+    }
+  }
+  const session = await loginUser(app, { email });
+  return { ...session, membershipId: membership.rows[0].id };
 }
 
 /** Removes everything created by tests using the shared test e-mail domain. Audit rows stay (append-only). */

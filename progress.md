@@ -9,7 +9,7 @@
 |---|---|
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
-| 3. Authentication & authorization | 🟡 In progress — 3a done (branch `phase3-auth`); 3b permissions + isolation tests, 3c members/invites, 3d React login, 3e password reset remaining |
+| 3. Authentication & authorization | 🟡 In progress — 3a, 3b done (branch `phase3-auth`); 3c members/invites, 3d React login, 3e password reset remaining |
 | 4. Core business features | ⚪ Not started |
 | 5. Hardening | ⚪ Not started |
 
@@ -79,7 +79,15 @@ Known gaps / things to verify later: UI not yet reviewed by eye in a browser; CI
   - `loadBusinessContext` computes effective permissions (role + grants − denies; Owner always all) in one query per request
   - Audit events: register, business.create, login, login_failed, login_blocked, account_locked, logout, switch_business
   - **Tests (3a):** server 112/112 (44 auth integration + unit tests for passwords, tokens, permission resolution); whole repo 245/245 (2026-10-24). A test caught a real bug (lockout never triggered because of a config/SQL name mismatch) — fixed.
-- [ ] **3b** `requirePermission` + route-guard coverage test + minimal contacts CRUD as isolation test subject + cross-tenant and RBAC-matrix suites
+- [x] **3b** Permission enforcement, contacts API, and the security suites:
+  - `requirePermission(...)` (409 `NO_ACTIVE_BUSINESS` / 403 `FORBIDDEN`); unknown permission names throw at startup. `guards.session` (account routes) and `guards.tenant('perm')` (business data) are the only ways to protect a route (`server/src/middleware/guards.js`). Business and user come from the session, never from the request.
+  - Migration `…004_contacts.sql`: `contacts` table (≥1 role, no uniqueness on phone/PAN/VAT, `UNIQUE (business_id, id)` for future composite FKs, trigram index)
+  - Contacts API `/api/contacts`: list (search name/phone/email/PAN/VAT with literal `%`/`_`, type filter, archived filter, pagination with totals), create, get, update (partial, clears with null/""), archive, unarchive; strict validation (unknown fields incl. `business_id` → 400); audit entries with before/after diff. Balances/opening balance arrive with the ledger in Phase 4.
+  - **Route-guard coverage test** (`tests/security/routeGuards.test.js`): lists every mounted route; fails if any route outside the explicit public/account allow-lists lacks authenticate → business → csrf → permission, if a permission name is unknown, or if a router was mounted without the registry. Mutation-checked: removing one guard makes it fail and names the route.
+  - **Cross-tenant suite** (`tests/security/tenantIsolation.test.js`, 28 tests): A cannot read/modify/archive/unarchive B's contacts by id (404 identical to a nonexistent id), cannot see them in list/search/filters, cannot redirect via `business_id`/`businessId` in body or query (400), ignores business headers, cannot switch into B, cannot borrow B's CSRF token; SQL-looking ids/search text are inert; staff-in-A/viewer-in-B never gets the union of powers; deactivated member, suspended business and changed role take effect on the next request; platform admin gets no tenant access. Mutation-checked: removing the business filter from the contact lookup makes 6 of these fail.
+  - **RBAC matrix** (`tests/security/rbacMatrix.test.js`): 5 roles × 6 endpoints generated from `shared/permissions.js`; denied calls are 403 and change nothing; overrides (grant, deny, owner immune, live without re-login); `/me` permissions equal what the server enforces.
+  - **Tests (3b):** server 237/237, whole repo 370/370 (119 shared + 237 server + 14 client), 2026-10-24.
+  - Honest limits: RBAC/isolation is proven for the contacts module only; every future module must add its endpoints to the matrix and isolation tests (the coverage test forces guards, not tests). Tests run against the real Neon database, so the full suite takes ~2–3 minutes.
 - [ ] **3c** Members, invitations, role changes, overrides, rank rules, ownership transfer
 - [ ] **3d** Frontend auth flow (login, register, business picker, protected routes)
 - [ ] **3e** Password reset / change password / session list (nodemailer, console transport in dev)

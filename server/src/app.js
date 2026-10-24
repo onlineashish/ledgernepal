@@ -8,7 +8,9 @@ import { pinoHttp } from 'pino-http';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { originCheck, requireJson } from './middleware/security.js';
 import { createRateLimiters } from './middleware/rateLimit.js';
+import { createGuards } from './middleware/guards.js';
 import { authRoutes } from './modules/auth/routes.js';
+import { contactRoutes } from './modules/contacts/routes.js';
 import { healthRoutes } from './modules/health/routes.js';
 
 /**
@@ -41,11 +43,20 @@ export function createApp({ config, logger, pool, clientDist, rateLimit = {} }) 
   app.use(originCheck(config));
   app.use(requireJson);
 
-  app.use('/api/health', healthRoutes({ pool }));
+  // Every API router is mounted through mount() so tests can list all routes and prove each one is guarded.
+  app.locals.mountedRouters = [];
+  const mount = (path, router) => {
+    app.locals.mountedRouters.push([path, router]);
+    app.use(path, router);
+  };
 
+  const guards = createGuards({ config, pool });
   const rateLimiters = createRateLimiters({ ...config.rateLimit, ...rateLimit });
+
+  mount('/api/health', healthRoutes({ pool }));
   app.use('/api', rateLimiters.api);
-  app.use('/api/auth', authRoutes({ config, pool, rateLimiters }));
+  mount('/api/auth', authRoutes({ config, pool, rateLimiters, guards }));
+  mount('/api/contacts', contactRoutes({ pool, guards }));
 
   app.use('/api', notFoundHandler);
 
