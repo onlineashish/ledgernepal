@@ -8,7 +8,7 @@
 | Phase | Status |
 |---|---|
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
-| 2. Project foundation | 🟡 In progress — steps 2a, 2b, 2c done; 2d (money/dates libs + CI) remaining (branch `phase2-foundation`) |
+| 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
 | 3. Authentication & authorization | ⚪ Not started |
 | 4. Core business features | ⚪ Not started |
 | 5. Hardening | ⚪ Not started |
@@ -56,9 +56,16 @@ Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests 
 - [x] React 19 + Vite 8 + React Router 8 + Tailwind 4 + React Query shell (`client/`): navy sidebar, 8 nav sections, Ledger → View Ledger / Add Ledger Entry, mobile drawer, dashboard with 6 quick actions and a live server-status card, honest "Coming soon" placeholders for unbuilt pages, 404 page, `apiFetch` wrapper (error envelope → `ApiError`, CSRF header ready), string catalog for future Nepali (`src/i18n`)
 - [x] Express serves `client/dist` with SPA fallback in production (API paths still return JSON 404); `npm run dev` runs API + Vite with `/api` proxy; `npm run build` builds the client
 - **Step 2c tests:** server 51/51 + client 14/14 passing (2026-10-24). Verified by running: production build served on one port (`/`, `/contacts` refresh, `/api/health/ready`, JSON 404 under `/api`), and dev proxy through Vite. **Not yet checked by eye in a browser** — open http://localhost:5173 after `npm run dev` and confirm the look.
-- [ ] Money + BS/AD date libraries with unit tests (step 2d)
-- [ ] GitHub Actions workflow running tests on pull requests (step 2d; needs `TEST_DATABASE_URL` as a repo secret)
-- [ ] `render.yaml` / Render settings (build: `npm ci && npm run build`, start: `npm start`, health check `/api/health/ready`) — written in 2d or Phase 5
+- [x] `shared/money.js`: money as BigInt paisa; strict parse (≤2 decimals, rejects commas/exponents/float noise); `NUMERIC(14,2)` limit; Nepali digit grouping (`रु 1,23,456.78`); half-up rounding applied once per value; quantity × price, percent-of, exact proportional allocation (largest remainder), `calculateLine` (gross → discount → taxable → tax → total; no tax when no rate)
+- [x] `shared/dates.js`: AD ISO is canonical; BS conversion via `@remotemerge/nepali-date-converter` (BS 1975–2099 / AD 1918-04-13 – 2043-04-13) wrapped with our own validation; BS input/format; `todayInNepal` (UTC+05:45); BS month ranges; fiscal year (Shrawan 1 – Ashadh end) and `fiscalYearOf`
+- **Step 2d tests:** shared 119/119, identical results under TZ=UTC, Asia/Kathmandu, America/Los_Angeles, Pacific/Kiritimati. Date tests: 8 published New Year anchors (both directions); BS year lengths cross-checked against real gaps between New Year dates; every one of the ~45,600 supported days round-trips and advances exactly one BS day; all 1,500 BS months are 29–32 days; invalid/leap/out-of-range dates; fiscal years contiguous 2070–2095 and 365/366 days each.
+- [x] `.github/workflows/ci.yml`: runs all tests + client build on PRs and pushes to `main`; serialised so only one run uses the test DB. **Needs repository secret `TEST_DATABASE_URL`.**
+- [x] `render.yaml` (build `npm ci --include=dev && npm run build && npm run db:migrate`, start `npm start`, health check `/api/health/ready`). **Not yet deployed or verified** — the first Render deploy is the real test.
+- [x] `README.md` with setup and commands
+
+### Phase 2 summary
+Done: Express API foundation, validated config, error handling, logging, health checks; Neon connection and versioned migrations (users, sessions, businesses, RBAC, memberships, audit log); seeded permission matrix; React shell; money and BS/AD date libraries; CI and Render config.
+Known gaps / things to verify later: UI not yet reviewed by eye in a browser; CI and Render not yet run for real; DB password was pasted in chat once (rotate it); app still connects as the Neon owner role (Phase 5).
 
 ## Phase 3 — Authentication & authorization
 
