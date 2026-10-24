@@ -8,7 +8,7 @@
 | Phase | Status |
 |---|---|
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
-| 2. Project foundation | 🟡 In progress — step 2a done (branch `phase2-foundation`) |
+| 2. Project foundation | 🟡 In progress — steps 2a, 2b done (branch `phase2-foundation`) |
 | 3. Authentication & authorization | ⚪ Not started |
 | 4. Core business features | ⚪ Not started |
 | 5. Hardening | ⚪ Not started |
@@ -47,8 +47,11 @@ Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests 
 - [x] Health endpoints: `/api/health`, `/api/health/ready`
 - [x] pg pool + `withTransaction` helper; `npm run db:check` (all 3 Neon URLs connect, `sslmode=verify-full`)
 - **Step 2a tests:** 18/18 passing (`npm test`, 2026-10-24) — config (7), error handler (3), health/errors/CORS integration (8)
-- [ ] Migrations (identity, tenancy, RBAC, audit)
-- [ ] Role/permission seed
+- [x] Migrations (4 files in `server/migrations/`): extensions + `set_updated_at`; users, businesses, business_settings, sessions, password_reset_tokens; roles, permissions, role_permissions, business_users (+ one-active-owner index, `is_owner` trigger), permission overrides (composite FK), invitations; audit_logs (append-only triggers). Applied to the main and test Neon databases; full rollback + re-apply verified on the test branch.
+- [x] Role/permission seed from `shared/permissions.js` (idempotent; `npm run db:seed`; also runs inside `db:migrate` and test setup)
+- **Step 2b tests:** 44/44 passing (2026-10-24) — adds 26 DB tests: seeded matrix per role, case-insensitive unique email, CHECK constraints, one active owner, cross-business override FK rejection, single open invitation, session cascades, audit_logs update/delete/truncate blocked
+- Commands: `npm run db:migrate` · `db:migrate:down` (1 step) · `db:seed` · `db:status`
+- Not done on purpose: separate low-privilege DB role for the app (audit immutability is enforced by triggers instead; revisit in Phase 5 with RLS)
 - [ ] Test harness (vitest + supertest + test DB)
 - [ ] React/Vite/Router/Tailwind shell
 - [ ] Money + BS/AD date libraries with unit tests
