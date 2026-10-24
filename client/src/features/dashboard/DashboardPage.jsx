@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../../api/client.js';
-import { QUICK_ACTIONS } from '../../app/navigation.js';
+import { QUICK_ACTIONS, visibleTo } from '../../app/navigation.js';
+import { useAuth } from '../../auth/AuthContext.jsx';
 import { Button, Card, PageHeader } from '../../components/ui.jsx';
 import { t } from '../../i18n/en.js';
 
@@ -27,6 +28,8 @@ function ApiStatus() {
 }
 
 export function DashboardPage() {
+  const auth = useAuth();
+  const actions = visibleTo(auth, QUICK_ACTIONS);
   return (
     <>
       <PageHeader
@@ -35,8 +38,9 @@ export function DashboardPage() {
       />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Quick actions">
+          {actions.length === 0 && <p className="text-sm text-slate-600">Nothing to record with your current access.</p>}
           <div className="grid gap-2 sm:grid-cols-2">
-            {QUICK_ACTIONS.map((action) => (
+            {actions.map((action) => (
               <Button key={action.key} to={action.to} variant={action.key === 'ledger' ? 'primary' : 'secondary'}>
                 {action.label}
               </Button>

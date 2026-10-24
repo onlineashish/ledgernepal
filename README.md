@@ -42,6 +42,34 @@ npm run db:migrate:down  # revert the most recent migration (one step)
 npm run db:status        # list applied migrations
 ```
 
+## Writing server tests
+
+Server test files run **in parallel** against one real Neon test branch, which is what keeps the suite at
+about a minute and a half instead of five. That works because every file creates and removes only its own
+data (each file gets its own e-mail domain, see `server/tests/helpers/api.js`). So in a test:
+
+- create users with `registerUser` / `createMemberSession` / `uniqueEmail`, never fixed e-mail addresses;
+- never assert on table-wide counts (`SELECT count(*) FROM businesses`) or delete other files' rows; scope by
+  ids or unique names you created;
+- add every new business endpoint to the role matrix and cross-business isolation tests.
+
+## Email (optional)
+
+Invitations never use email: the inviter copies a link and shares it (e.g. on WhatsApp).
+Email is used for one thing only: **"Forgot password"**. Without it, an owner or administrator can still
+create a reset link for a team member (Team page → *Reset link*) and send it by hand.
+
+To send real reset emails with [Brevo](https://www.brevo.com) (free plan, works on Render, no domain needed):
+
+1. Create a Brevo account and verify a sender address: *Senders, Domains & Dedicated IPs → Senders*.
+   (An address on a free provider such as Gmail may be filtered to spam; a domain you own is more reliable.)
+2. Create an API key: *SMTP & API → API Keys*.
+3. Set `MAIL_PROVIDER=brevo`, `BREVO_API_KEY` and `MAIL_FROM_EMAIL` in `.env` (locally) or the Render dashboard.
+
+Locally, with nothing set, emails are printed in the server log (including the reset link). In production
+the console provider is refused on purpose, because it would put reset links in the logs. Free-plan limits
+change; check Brevo's current numbers.
+
 ## Git workflow
 
 Work on a branch, open a pull request, let CI pass, merge into `main`. Render deploys `main`.

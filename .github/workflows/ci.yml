@@ -5,30 +5,43 @@ on:
   push:
     branches: [main]
 
-# Tests share one Neon test database and wipe/seed it, so only one run may use it at a time.
-concurrency:
-  group: ledgernepal-test-database
-  cancel-in-progress: false
-
 jobs:
-  test:
+  # Shared helpers and the React app: no database involved, so this job is quick and runs alongside the other.
+  frontend-and-shared:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
+      - name: Shared tests (money, dates, permissions)
+        run: npm test --workspace shared
+      - name: Client tests
+        run: npm test --workspace client
+      - name: Build the client
+        run: npm run build
 
-      - name: Run all tests (shared, server, client)
-        run: npm test
+  # The API tests talk to the real Neon test branch. They wipe and re-seed it, so only one run
+  # may use it at a time. GitHub's servers are far from Neon (Singapore), so every query is slower
+  # than on a developer machine: the files run in parallel and the limit is generous.
+  server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    concurrency:
+      group: ledgernepal-test-database
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Server tests
+        run: npm test --workspace server
         env:
           # Repository secret pointing at the Neon *test* branch. Never the real database.
           TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-
-      - name: Build the client
-        run: npm run build
