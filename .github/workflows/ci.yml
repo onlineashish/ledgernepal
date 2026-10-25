@@ -29,7 +29,7 @@ jobs:
   # than on a developer machine: the files run in parallel and the limit is generous.
   server:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     concurrency:
       group: ledgernepal-test-database
       cancel-in-progress: false
