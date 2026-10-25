@@ -109,7 +109,54 @@ An amount must be greater than zero; direction carries the sign.
 Every transaction date is a plain calendar date stored in AD. BS is converted only for typing and display.
 See `shared/dates.js`. The fiscal year starts on Shrawan 1.
 
-## 10. Still to come (documented when built)
+## 10. Sales invoices and purchase bills
 
-Sales and purchase lines and VAT, receipts and payments with allocation to invoices and advances,
-overdue rules. Allocation never changes a contact's balance: only posted transactions do.
+A sale is a debit (the customer owes you more); a purchase is a credit (you owe the supplier more).
+Both use the same rules, in `shared/invoice.js` (the server stores the result; the screens only preview it).
+
+### How a document is added up
+
+For each line:
+
+| Step | Rule |
+|---|---|
+| Gross | quantity × unit price (rounded once to the paisa, half up) |
+| After line discount | gross − the line's own discount (a discount can never exceed the line) |
+| Invoice discount share | the invoice-level discount is spread over the lines **in proportion to their amount after line discounts**, so the shares add up to the discount exactly |
+| Net | after line discount − share |
+| Taxable amount | the net amount if the line has a VAT rate, otherwise 0 |
+| VAT | taxable amount × rate, rounded once per line |
+| Line total | net + VAT |
+
+For the document: subtotal = Σ gross; discount = line discounts + invoice discount; taxable total, non-taxable total and
+VAT total are the sums of the lines; **total = taxable + non-taxable + VAT = subtotal − discount + VAT**.
+The invoice discount is spread *before* VAT, so VAT is charged on the reduced price.
+
+### VAT
+
+- Nothing is assumed. A business is **not** VAT-registered unless it says so in Settings, and then no line may carry VAT.
+- Each taxable line uses its own rate, or the business's default rate; if neither exists the line is refused.
+- A rate of 0% means "taxable at zero", which is different from "not taxable".
+- The rate is copied onto the line when it is written. Changing the business's rate later never changes a saved document.
+- Taxable amount, VAT and total are always shown separately. This is basic VAT bookkeeping, **not** a statement that the printed
+  document meets Nepal's invoice rules; check those before relying on it.
+
+### Life of a document
+
+- A **draft** has no number and no effect on any balance. It can be edited (send the lines again to change amounts) and deleted.
+- **Posting** gives it its number (`SI-2082/83-0001` for sales, `PB-…` for purchases; the fiscal year is the one containing the
+  *document date*) and it starts counting toward the contact's balance. Posting needs at least one line and a total above zero.
+- A **posted** document can no longer be changed except for its notes and its reference (supplier's bill number, customer's PO number).
+  Its lines are protected by the database too. To change anything else: **void** it (reason required) and enter a new one.
+- A **voided** document stays on record, stops counting, and is frozen.
+- Only drafts are deleted. Voiding a draft is not possible: delete it.
+
+### Due dates
+
+A document's due date is the one you give; if you give none, it is the document date plus the business's default credit days;
+if the business has set no credit days, there is no due date and the document is never overdue.
+
+## 11. Still to come (documented when built)
+
+Receipts and payments with allocation to invoices and advances, paid status, overdue reports. Allocation never changes a
+contact's balance: only posted transactions do.

@@ -52,6 +52,19 @@ const contactWithOpening = async () => {
   return contact;
 };
 
+// Sales and purchases: one set of endpoints per kind, each gated by its own permissions.
+const docBody = (contactId, extra = {}) => ({ contactId, txnDate: '2025-08-01', lines: [{ description: 'Matrix item', quantity: '1', unitPrice: '10' }], ...extra });
+const newDoc = (path, extra) => async () => (await owner.post(path, docBody((await newContact()).id, extra))).body.data;
+const documentEndpoints = [['sales', '/api/sales'], ['purchases', '/api/purchases']].flatMap(([noun, path]) => [
+  { name: `GET ${path}`, permission: `${noun}.view`, okStatus: 200, call: (s) => s.get(path) },
+  { name: `GET ${path}/:id`, permission: `${noun}.view`, okStatus: 200, prepare: newDoc(path), call: (s, d) => s.get(`${path}/${d.id}`) },
+  { name: `POST ${path}`, permission: `${noun}.create`, okStatus: 201, prepare: newContact, call: (s, c) => s.post(path, docBody(c.id)) },
+  { name: `PATCH ${path}/:id (draft)`, permission: `${noun}.update`, okStatus: 200, prepare: newDoc(path), call: (s, d) => s.patch(`${path}/${d.id}`, { notes: 'edited' }) },
+  { name: `DELETE ${path}/:id (draft)`, permission: `${noun}.update`, okStatus: 200, prepare: newDoc(path), call: (s, d) => s.delete(`${path}/${d.id}`) },
+  { name: `POST ${path}/:id/post`, permission: `${noun}.create`, okStatus: 200, prepare: newDoc(path), call: (s, d) => s.post(`${path}/${d.id}/post`) },
+  { name: `POST ${path}/:id/void`, permission: `${noun}.void`, okStatus: 200, prepare: newDoc(path, { post: true }), call: (s, d) => s.post(`${path}/${d.id}/void`, { reason: 'matrix test void' }) },
+]);
+
 // `prepare` creates whatever the call needs, using the owner, so the role under test only makes the one call.
 const ENDPOINTS = [
   { name: 'GET /contacts', permission: 'contacts.view', okStatus: 200, call: (s) => s.get('/api/contacts') },
@@ -71,6 +84,13 @@ const ENDPOINTS = [
   { name: 'POST /ledger/entries/:id/correct', permission: 'ledger.correct', okStatus: 201, prepare: newLedgerEntry, call: (s, e) => s.post(`/api/ledger/entries/${e.id}/correct`, { amount: '1', reason: 'matrix test fix' }) },
   { name: 'PUT /contacts/:id/opening-balance (first one)', permission: 'ledger.create', okStatus: 200, prepare: newContact, call: (s, c) => s.put(`/api/contacts/${c.id}/opening-balance`, { amount: '10', side: 'they_owe_me' }) },
   { name: 'DELETE /contacts/:id/opening-balance', permission: 'ledger.correct', okStatus: 200, prepare: contactWithOpening, call: (s, c) => s.delete(`/api/contacts/${c.id}/opening-balance`) },
+
+  ...documentEndpoints,
+
+  // Settings and the business profile.
+  { name: 'GET /settings', permission: 'business.view', okStatus: 200, call: (s) => s.get('/api/settings') },
+  { name: 'PATCH /settings', permission: 'settings.manage', okStatus: 200, call: (s) => s.patch('/api/settings', { invoiceFooter: 'matrix footer' }) },
+  { name: 'PATCH /businesses/current', permission: 'business.update', okStatus: 200, call: (s) => s.patch('/api/businesses/current', { phone: '01-5555555' }) },
 
   // Members and invitations. Targets are fresh Staff members / Viewer invitations, which every role that
   // holds the permission is also senior enough to manage, so the permission is the only variable.

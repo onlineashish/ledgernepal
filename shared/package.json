@@ -7,6 +7,7 @@
     "./permissions": "./permissions.js",
     "./money": "./money.js",
     "./ledger": "./ledger.js",
+    "./invoice": "./invoice.js",
     "./dates": "./dates.js"
   },
   "dependencies": {

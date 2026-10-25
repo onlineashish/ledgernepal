@@ -53,7 +53,7 @@ const snapshot = (row) => ({
 });
 
 /** The contact must belong to THIS business (a foreign id looks like a missing one) and not be archived. */
-async function lockPostableContact(tx, req, contactId) {
+export async function lockPostableContact(tx, req, contactId) {
   const contact = await contactsRepo.findContact(tx, req.business.id, contactId, { forUpdate: true });
   if (!contact) throw notFound('Contact not found');
   if (contact.archived_at) throw conflict('This contact is archived. Unarchive it before adding entries.');

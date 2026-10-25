@@ -10,7 +10,7 @@
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
 | 3. Authentication & authorization | ✅ Done (3a–3e). 646 automated tests passing (shared 119, server 422, client 105). Branch `phase3-auth`, ready to merge. |
-| 4. Core business features | 🟡 In progress — 4a (ledger engine) and 4b (contacts & ledger screens) done on branch `phase4-ledger`; 4c sales & purchases next |
+| 4. Core business features | 🟡 In progress — 4a ledger engine, 4b contacts & ledger screens, 4c sales & purchases engine done on branch `phase4-ledger`; 4d sales & purchases screens next |
 | 5. Hardening | ⚪ Not started |
 
 Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests passing)
@@ -150,7 +150,17 @@ Known gaps / later: Settings UI for per-member permission overrides and ownershi
   - **Tests (4b):** client +78 (183 total): date field 13, contacts list/form/page/opening balance 32, ledger table/void/correct/all-entries/entry form 33; shared +5. Whole repo **890/890** (139 shared + 568 server + 183 client), 2026-10-25. Test bugs found along the way were in the tests themselves (fixture shape, wording); no app bug surfaced beyond what the earlier steps' tests had already caught.
   - **Not checked in a real browser** (only by automated tests with a fake server): please try `npm run dev` — add a contact with an opening balance, add entries, void and correct one, switch BS/AD.
   - **Not built yet:** CSV/PDF export and printing of the ledger (4g), Settings screen to change the BS/AD preference (4h), BS/AD in the dashboard filters (4f).
-- [ ] Sales & purchases
+- [x] **4c Sales & purchases engine (server)** — invoice/bill lines, discounts, VAT, drafts, post, void; plus the Settings API it needs
+  - **Plan for the rest of Phase 4:** 4d sales & purchases screens · 4e receipts & payments + allocations (server) · 4f their screens · 4g dashboard & reports · 4h print & CSV export · 4i settings screen.
+  - **Calculation** (`shared/invoice.js`, rules in `docs/accounting-conventions.md` §10): per line gross → line discount → share of the invoice discount (spread in proportion, exactly, BEFORE VAT) → net → VAT (per line, rounded once) → total; totals = taxable + non-taxable + VAT. Property-tested on 400 random documents (total = subtotal − discount + VAT; shares add up exactly; nothing negative).
+  - **Database (migration 006):** `transaction_lines` (positive quantities, line total must equal gross − discounts + VAT, taxable ⇔ has a rate, same-business composite key) and a trigger that makes the lines of a posted or voided document immutable, even to direct SQL.
+  - **VAT:** nothing assumed. A business is not VAT-registered unless it says so; taxable lines need a rate (the line's own, or the business default); 0% differs from "not taxable"; the rate is copied onto the line so later rate changes never alter history.
+  - **API** (`/api/sales`, `/api/purchases`, one implementation): list (status/contact/date/search/paging), create draft or `post: true`, get with lines, `PATCH` (draft: change anything, send lines again to change amounts; posted: notes and reference only), `DELETE` (drafts only), `POST /:id/post`, `POST /:id/void` (reason required). Numbers `SI-2082/83-0001` / `PB-…` from the document date's fiscal year; due date = given date, else date + the business's credit days, else none. Sales debit the contact, purchases credit them; a contact who is both has one net balance. Contact ledger lines now include invoices and bills.
+  - **Settings API** (`GET/PATCH /api/settings`, `PATCH /api/businesses/current`): date display, VAT registration, default VAT rate, default credit days, numbering prefixes (only affect new documents), invoice footer; business profile (name, address, PAN, VAT number). Audited with before/after of what changed; the session now carries the date preference.
+  - **Tests (4c):** shared +14 (invoice maths), database +22 (lines), sales 57 + purchases 57 + together 2, settings 34, isolation of documents 17, role matrix +17 endpoints × 5 roles. Whole repo **1,175/1,175** (153 shared + 839 server + 183 client), 2026-10-25. Mutation-checked: dropping the business filter, dropping the sale/purchase separation, and allowing VAT for unregistered businesses each fail tests.
+  - CI time: the sales and purchases suites run as separate files in parallel (91 s instead of 199 s locally).
+  - **Not yet:** screens (4d); paid / outstanding amounts (come with allocations in 4e); print/PDF (4h); "copy as new draft".
+- [ ] **4d Sales & purchases screens**
 - [ ] Receipts & payments + allocations
 - [ ] Paid status / overdue / consistency tests
 - [ ] Dashboard & reports
