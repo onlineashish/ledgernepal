@@ -3,6 +3,11 @@ import { AcceptInvitePage } from '../auth/AcceptInvitePage.jsx';
 import { ChooseBusinessPage } from '../auth/ChooseBusinessPage.jsx';
 import { ForgotPasswordPage } from '../auth/ForgotPasswordPage.jsx';
 import { ResetPasswordPage } from '../auth/ResetPasswordPage.jsx';
+import { ContactDetailPage } from '../features/contacts/ContactDetailPage.jsx';
+import { ContactFormPage } from '../features/contacts/ContactFormPage.jsx';
+import { ContactsPage } from '../features/contacts/ContactsPage.jsx';
+import { LedgerEntryFormPage } from '../features/ledger/LedgerEntryFormPage.jsx';
+import { LedgerPage } from '../features/ledger/LedgerPage.jsx';
 import { AccountPage } from '../features/account/AccountPage.jsx';
 import { LoginPage } from '../auth/LoginPage.jsx';
 import { RegisterPage } from '../auth/RegisterPage.jsx';
@@ -17,8 +22,6 @@ const PHASE4 = 'Phase 4 (core business features)';
 
 // [path, title, permission(s) required to open it]. One placeholder per route until the real feature replaces it.
 const PLACEHOLDER_ROUTES = [
-  ['contacts', t('nav.contacts'), 'contacts.view'],
-  ['contacts/new', t('quick.addContact'), 'contacts.create'],
   ['sales', t('nav.sales'), 'sales.view'],
   ['sales/new', t('quick.createSale'), 'sales.create'],
   ['purchases', t('nav.purchases'), 'purchases.view'],
@@ -26,8 +29,6 @@ const PLACEHOLDER_ROUTES = [
   ['receipts-payments', t('nav.receiptsPayments'), ['receipts.view', 'payments.view']],
   ['receipts-payments/new-receipt', t('quick.recordReceipt'), 'receipts.create'],
   ['receipts-payments/new-payment', t('quick.recordPayment'), 'payments.create'],
-  ['ledger', t('nav.viewLedger'), 'ledger.view'],
-  ['ledger/new', t('nav.addLedgerEntry'), 'ledger.create'],
   ['reports', t('nav.reports'), 'reports.view'],
   ['settings', t('nav.settings'), 'business.view'],
 ];
@@ -56,6 +57,12 @@ export function App() {
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="account" element={<AccountPage />} />
+          <Route path="contacts" element={<RequirePermission permission="contacts.view"><ContactsPage /></RequirePermission>} />
+          <Route path="contacts/new" element={<RequirePermission permission="contacts.create"><ContactFormPage mode="create" /></RequirePermission>} />
+          <Route path="contacts/:id" element={<RequirePermission permission="contacts.view"><ContactDetailPage /></RequirePermission>} />
+          <Route path="contacts/:id/edit" element={<RequirePermission permission="contacts.update"><ContactFormPage mode="edit" /></RequirePermission>} />
+          <Route path="ledger" element={<RequirePermission permission="ledger.view"><LedgerPage /></RequirePermission>} />
+          <Route path="ledger/new" element={<RequirePermission permission="ledger.create"><LedgerEntryFormPage /></RequirePermission>} />
           <Route path="team" element={<RequirePermission permission="users.view"><TeamPage /></RequirePermission>} />
           {PLACEHOLDER_ROUTES.map(([path, title, permission]) => (
             <Route

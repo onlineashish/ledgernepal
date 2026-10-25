@@ -7,6 +7,7 @@ import {
   balanceSide,
   balanceSideOfAmount,
   describeBalance,
+  describeOutcome,
   directionOfEffect,
   openingSideOfEffect,
 } from '../ledger.js';
@@ -46,6 +47,34 @@ describe('balance sides', () => {
     expect(describeBalance('Ram', '5000.00')).toBe('Ram owes you');
     expect(describeBalance('Ram', '-5000.00')).toBe('You owe Ram');
     expect(describeBalance('Ram', '0.00')).toBe('Settled');
+  });
+});
+
+describe('describeOutcome (the sentence under the form)', () => {
+  const format = (paisa) => `Rs ${Number(paisa) / 100}`;
+  const say = (direction, amount, current) =>
+    describeOutcome({ name: 'Ram', direction, amountPaisa: toPaisa(amount), currentPaisa: current === null ? null : current, format });
+
+  it('says what the balance will become after giving', () => {
+    expect(say('you_gave', '2000', toPaisa('5000'))).toBe('You gave Rs 2000. Ram will owe you Rs 7000.');
+  });
+
+  it('says what the balance will become after getting', () => {
+    expect(say('you_got', '2000', toPaisa('5000'))).toBe('You got Rs 2000. Ram will owe you Rs 3000.');
+  });
+
+  it('says so when the account becomes settled, and when the direction flips', () => {
+    expect(say('you_got', '5000', toPaisa('5000'))).toBe("You got Rs 5000. Ram's account will be settled.");
+    expect(say('you_got', '6000', toPaisa('5000'))).toBe('You got Rs 6000. You will owe Ram Rs 1000.');
+    expect(say('you_gave', '100', -toPaisa('300'))).toBe('You gave Rs 100. You will owe Ram Rs 200.');
+  });
+
+  it('starts from a zero balance', () => {
+    expect(say('you_gave', '10', 0n)).toBe('You gave Rs 10. Ram will owe you Rs 10.');
+  });
+
+  it('shows only the first half when the person may not see balances', () => {
+    expect(say('you_gave', '2000', null)).toBe('You gave Rs 2000.');
   });
 });
 

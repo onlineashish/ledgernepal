@@ -10,7 +10,7 @@
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
 | 3. Authentication & authorization | ✅ Done (3a–3e). 646 automated tests passing (shared 119, server 422, client 105). Branch `phase3-auth`, ready to merge. |
-| 4. Core business features | 🟡 In progress — 4a (ledger engine) done on branch `phase4-ledger`; 4b contacts & ledger screens next |
+| 4. Core business features | 🟡 In progress — 4a (ledger engine) and 4b (contacts & ledger screens) done on branch `phase4-ledger`; 4c sales & purchases next |
 | 5. Hardening | ⚪ Not started |
 
 Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests passing)
@@ -139,7 +139,17 @@ Known gaps / later: Settings UI for per-member permission overrides and ownershi
   - **Tests (4a):** database rules 38, ledger API 49, shared 15, plus ledger cases in the isolation suite (10) and role matrix (9 endpoints × 5 roles, 4 permission-combination cases). Whole repo **807/807** (134 shared + 568 server + 105 client), 2026-10-25. Mutation-checked: removing the business filter on ledger lookups fails isolation tests; making "You got" a debit fails the balance test.
   - The development database now has the contacts and transactions tables (the Phase 3 contacts migration had not been applied there yet).
   - **Not built yet:** the screens (contacts list and detail, Add Ledger Entry form, contact ledger page) and CSV/PDF/print for the ledger (planned with 4g).
-- [ ] **4b Contacts & ledger screens** (React): contacts list/search/filter/create/edit/archive, details page with balance and ledger, Add Ledger Entry from the sidebar, dashboard and contact page, BS/AD date input
+- [x] **4b Contacts & ledger screens** (React, `client/src/features/contacts`, `client/src/features/ledger`)
+  - **Contacts list** `/contacts`: search (after typing pauses), type and archived filters kept in the URL, pagination, balance in plain words ("Owes you रु 5,000.00" / "You owe रु 300.00" / "Settled", never a bare minus sign), balance column hidden without `ledger.view`, empty and no-match states.
+  - **Add / edit contact** `/contacts/new`, `/contacts/:id/edit`: only name and type required; several types at once; server messages next to the right fields; optional opening balance on creation (who owes whom, amount, as-of date) for people who may create ledger entries.
+  - **Contact page** `/contacts/:id`: balance in words, details, Add ledger entry / Edit / Archive (with confirmation), opening balance card (add, change in a dialog, remove with confirmation; changing needs `ledger.correct`), and the **contact ledger**: date range, search, paging, brought-forward / totals / closing balance, each line with debit, credit and running balance, **Void** (reason required) and **Correct** (starts from the old values) dialogs, read-only for archived contacts and for people without `ledger.correct`.
+  - **View Ledger** `/ledger`: all direct entries and opening balances, status/date/search filters, voided entries marked.
+  - **Add Ledger Entry** `/ledger/new` (from the sidebar, the dashboard and the contact page; `?contactId=` pre-fills): contact picker, "You gave / You got" cards that spell out the meaning for this contact, amount, date, description, own reference, and a **live sentence** that states the result before saving ("You gave रु 2,000.00. Ram Bahadur will owe you रु 7,000.00." / "…You will owe Ram Bahadur रु 1,500.50." / "…account will be settled."; only the first half when balances are hidden). "Save" or "Save and add another".
+  - **Dates:** `DateField` accepts BS or AD, shows the same day in the other calendar, hands the form the AD date; the business's `dateDisplay` (BS by default) now comes with the session and tables show dates in that calendar. Server change: `activeBusiness.dateDisplay` added to the session payload.
+  - New shared piece: `describeOutcome` in `shared/ledger.js`.
+  - **Tests (4b):** client +78 (183 total): date field 13, contacts list/form/page/opening balance 32, ledger table/void/correct/all-entries/entry form 33; shared +5. Whole repo **890/890** (139 shared + 568 server + 183 client), 2026-10-25. Test bugs found along the way were in the tests themselves (fixture shape, wording); no app bug surfaced beyond what the earlier steps' tests had already caught.
+  - **Not checked in a real browser** (only by automated tests with a fake server): please try `npm run dev` — add a contact with an opening balance, add entries, void and correct one, switch BS/AD.
+  - **Not built yet:** CSV/PDF export and printing of the ledger (4g), Settings screen to change the BS/AD preference (4h), BS/AD in the dashboard filters (4f).
 - [ ] Sales & purchases
 - [ ] Receipts & payments + allocations
 - [ ] Paid status / overdue / consistency tests

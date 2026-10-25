@@ -47,3 +47,19 @@ export function describeBalance(contactName, amount) {
 export function balanceAfter(currentPaisa, effect, amountPaisa) {
   return effect === 'debit' ? currentPaisa + amountPaisa : currentPaisa - amountPaisa;
 }
+
+/**
+ * The sentence shown while someone fills in a direct entry, so the meaning is never a guess:
+ *   "You gave रु 2,000.00. Ram will owe you रु 7,000.00."
+ * `currentPaisa` may be null when the person is not allowed to see balances; then only the first half is shown.
+ * Pure function over paisa BigInts; formatting of the rupee amounts is injected so this file stays free of display code.
+ */
+export function describeOutcome({ name, direction, amountPaisa, currentPaisa = null, format }) {
+  const first = `${DIRECTIONS[direction].label} ${format(amountPaisa)}.`;
+  if (currentPaisa === null) return first;
+  const after = balanceAfter(currentPaisa, DIRECTIONS[direction].effect, amountPaisa);
+  if (after === 0n) return `${first} ${name}'s account will be settled.`;
+  return after > 0n
+    ? `${first} ${name} will owe you ${format(after)}.`
+    : `${first} You will owe ${name} ${format(-after)}.`;
+}
