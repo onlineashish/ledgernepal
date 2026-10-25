@@ -10,7 +10,7 @@
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
 | 3. Authentication & authorization | ✅ Done (3a–3e). 646 automated tests passing (shared 119, server 422, client 105). Branch `phase3-auth`, ready to merge. |
-| 4. Core business features | 🟡 In progress — 4a ledger engine, 4b contacts & ledger screens, 4c sales & purchases engine done on branch `phase4-ledger`; 4d sales & purchases screens next |
+| 4. Core business features | 🟡 In progress — 4a–4d done on branch `phase4-ledger` (ledger engine, contact & ledger screens, sales & purchases engine, sales & purchases screens + Settings); 4e receipts & payments next |
 | 5. Hardening | ⚪ Not started |
 
 Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests passing)
@@ -160,7 +160,15 @@ Known gaps / later: Settings UI for per-member permission overrides and ownershi
   - **Tests (4c):** shared +14 (invoice maths), database +22 (lines), sales 57 + purchases 57 + together 2, settings 34, isolation of documents 17, role matrix +17 endpoints × 5 roles. Whole repo **1,175/1,175** (153 shared + 839 server + 183 client), 2026-10-25. Mutation-checked: dropping the business filter, dropping the sale/purchase separation, and allowing VAT for unregistered businesses each fail tests.
   - CI time: the sales and purchases suites run as separate files in parallel (91 s instead of 199 s locally).
   - **Not yet:** screens (4d); paid / outstanding amounts (come with allocations in 4e); print/PDF (4h); "copy as new draft".
-- [ ] **4d Sales & purchases screens**
+- [x] **4d Sales & purchases screens, and the Settings screen** (`client/src/features/documents`, `client/src/features/settings`)
+  - **Lists** `/sales`, `/purchases`: number (or "Draft"), contact, due date, total, status; status/date/search filters; create button only for those who may.
+  - **Form** `/sales/new`, `/purchases/new`, `/…/:id/edit` (drafts only; `?contactId=` pre-fills): contact, date, optional due date (shows the date the credit-days default would give), reference ("Supplier's bill number" for purchases), item rows (item, quantity, unit, price, discount, and "Charge VAT" + rate only when the business is VAT-registered), discount on the whole document, notes. A **live total** uses the same rules as the server (`shared/invoice.js`): subtotal, discount, taxable / non-taxable / VAT (VAT parts only when VAT is on), total, and a sentence saying what **posting** will do to the contact's account ("After posting: Ram Bahadur will owe you रु 5,200." / "You will owe … "). Blank rows are ignored; a bad row is highlighted with the reason and holds back the total; server messages land on the right row even when blank rows were skipped. "Save draft" or "Save and post"; editing a draft can post it too.
+  - **Document page**: draft banner; Post (with a confirmation that explains what posting means), Edit, Delete draft (two steps); posted: Void (reason required) and "Edit notes and reference" only; voided: reason shown, no actions; items table with discount (line + share of the whole-document discount) and VAT columns only when the document has VAT; totals breakdown. Permissions respected (a viewer sees no buttons; staff can post but not void).
+  - **Contact page and ledger**: invoices and bills appear with a badge and link to their page; "New sales invoice" / "Record purchase" start one for that contact.
+  - **Settings screen** `/settings`: business details (name, legal name, address, phone, email, PAN, VAT number) and tax/dates/numbering (BS or AD display, VAT registration, default VAT rate with no rate assumed, default credit days, six number prefixes, invoice footer). Read-only with a clear note for people without the permission. Saving refreshes the session so dates and the business name change straight away. (This completes the settings screen planned as 4i.)
+  - **Tests (4d):** client +66 (249 total): preview maths 11, list/form/page/ledger-links 44, settings 11; shared +1; one server test that sends exactly the shape the form sends (blank optional fields as empty text, `dueDate: null`). Whole repo **1,244/1,244** (154 shared + 841 server + 249 client), 2026-10-25. The client suite waits up to 5 s for screens to appear (was 1 s) because three tests timed out only when the whole suite competed for one CPU.
+  - Not checked in a real browser. Please try: Settings → turn on VAT with your rate → New sales invoice → add items with VAT → Save and post → open the contact → Void.
+  - **Not built yet:** paid / outstanding amounts and receipts & payments (4e–4f); print and PDF (4h); "copy as new draft".
 - [ ] Receipts & payments + allocations
 - [ ] Paid status / overdue / consistency tests
 - [ ] Dashboard & reports

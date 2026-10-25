@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../api/client.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
@@ -10,6 +11,9 @@ import { useDayFormatter, useDebounced } from '../../lib/hooks.js';
 import { CorrectEntryModal, VoidEntryModal } from './EntryModals.jsx';
 
 const PAGE_SIZE = 50;
+// Invoices and bills open their own page; direct entries are corrected or voided right here.
+const DOCUMENT_PATHS = { sale: '/sales', purchase: '/purchases' };
+const TYPE_BADGES = { sale: ['Sales invoice', 'green'], purchase: ['Purchase bill', 'amber'] };
 
 /** One contact's account: every posted line with debit, credit and the running balance. */
 export function ContactLedger({ contactId, archived }) {
@@ -89,9 +93,10 @@ export function ContactLedger({ contactId, archived }) {
                   {ledger.data.data.rows.map((row) => (
                     <tr key={row.id}>
                       <td className="whitespace-nowrap py-2 pr-3">{day(row.txnDate)}</td>
-                      <td className="whitespace-nowrap py-2 pr-3 text-slate-600">{row.referenceNo}</td>
+                      <td className="whitespace-nowrap py-2 pr-3 text-slate-600">{DOCUMENT_PATHS[row.type] ? <Link to={`${DOCUMENT_PATHS[row.type]}/${row.id}`} className="font-medium text-brand-700 hover:underline">{row.referenceNo}</Link> : row.referenceNo}</td>
                       <td className="py-2 pr-3">
                         {row.type === 'opening_balance' && <span className="mr-2"><Badge tone="blue">Opening balance</Badge></span>}
+                        {TYPE_BADGES[row.type] && <span className="mr-2"><Badge tone={TYPE_BADGES[row.type][1]}>{TYPE_BADGES[row.type][0]}</Badge></span>}
                         {row.description ?? ''}
                         {row.externalRef && <span className="ml-2 text-xs text-slate-500">Ref {row.externalRef}</span>}
                         {row.createdBy && <span className="block text-xs text-slate-400">by {row.createdBy.fullName}</span>}

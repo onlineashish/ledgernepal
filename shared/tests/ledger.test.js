@@ -7,6 +7,7 @@ import {
   balanceSide,
   balanceSideOfAmount,
   describeBalance,
+  describeBalanceAfter,
   describeOutcome,
   directionOfEffect,
   openingSideOfEffect,
@@ -75,6 +76,15 @@ describe('describeOutcome (the sentence under the form)', () => {
 
   it('shows only the first half when the person may not see balances', () => {
     expect(say('you_gave', '2000', null)).toBe('You gave Rs 2000.');
+  });
+});
+
+describe('describeBalanceAfter', () => {
+  const format = (paisa) => `Rs ${Number(paisa) / 100}`;
+  it('words a positive, negative and zero balance', () => {
+    expect(describeBalanceAfter({ name: 'Ram', balancePaisa: toPaisa('700'), format })).toBe('Ram will owe you Rs 700');
+    expect(describeBalanceAfter({ name: 'Ram', balancePaisa: -toPaisa('200'), format })).toBe('You will owe Ram Rs 200');
+    expect(describeBalanceAfter({ name: 'Ram', balancePaisa: 0n, format })).toBe("Ram's account will be settled");
   });
 });
 

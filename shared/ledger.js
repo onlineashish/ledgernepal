@@ -63,3 +63,11 @@ export function describeOutcome({ name, direction, amountPaisa, currentPaisa = n
     ? `${first} ${name} will owe you ${format(after)}.`
     : `${first} You will owe ${name} ${format(-after)}.`;
 }
+
+/** "Ram will owe you रु 7,000.00" / "You will owe Ram रु 300.00" / "Ram's account will be settled" for a balance in paisa. */
+export function describeBalanceAfter({ name, balancePaisa, format }) {
+  if (balancePaisa === 0n) return `${name}'s account will be settled`;
+  return balancePaisa > 0n
+    ? `${name} will owe you ${format(balancePaisa)}`
+    : `You will owe ${name} ${format(-balancePaisa)}`;
+}

@@ -50,6 +50,8 @@ export function ContactDetailPage() {
         actions={
           <>
             {auth.can('ledger.create') && !isArchived && <Button to={`/ledger/new?contactId=${c.id}`}>Add ledger entry</Button>}
+            {auth.can('sales.create') && !isArchived && <Button to={`/sales/new?contactId=${c.id}`} variant='secondary'>New sales invoice</Button>}
+            {auth.can('purchases.create') && !isArchived && <Button to={`/purchases/new?contactId=${c.id}`} variant='secondary'>Record purchase</Button>}
             {auth.can('contacts.update') && <Button to={`/contacts/${c.id}/edit`} variant="secondary">Edit</Button>}
             {auth.can('contacts.archive') && !confirmArchive && (
               <Button variant="secondary" onClick={() => (isArchived ? archive.mutate(false) : setConfirmArchive(true))} disabled={archive.isPending}>

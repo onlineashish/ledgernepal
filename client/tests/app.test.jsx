@@ -41,7 +41,7 @@ describe('navigation', () => {
 
   it('is honest that unbuilt pages are not connected yet', async () => {
     asRole('owner');
-    renderApp({ route: '/sales' });
+    renderApp({ route: '/receipts-payments' });
     expect(await screen.findByText(/nothing on this page is connected yet/i)).toBeInTheDocument();
   });
 

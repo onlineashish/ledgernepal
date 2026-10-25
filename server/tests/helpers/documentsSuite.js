@@ -94,7 +94,26 @@ export function defineDocumentsSuite(k) {
         expect(doc.totals.total).toBe('120.00');
       });
 
-      it('records who made it and an audit entry', async () => {
+      it('accepts exactly what the screens send: blank optional fields as empty text, no VAT fields on plain lines', async () => {
+      const c = await newContact();
+      const res = await owner.post(k.path, {
+        contactId: c.id, txnDate: '2025-08-01', externalRef: '', notes: '', post: false,
+        lines: [{ description: 'Rice', quantity: '2', unit: '', unitPrice: '100', taxable: false }],
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.data).toMatchObject({ externalRef: null, notes: null, dueDate: null });
+      expect(res.body.data.lines[0]).toMatchObject({ unit: null, discount: '0.00' });
+      // and the edit the screens send for a draft: dueDate null means "no due date"
+      const edit = await owner.patch(`${k.path}/${res.body.data.id}`, {
+        contactId: c.id, txnDate: '2025-08-02', dueDate: null, externalRef: 'REF-1', notes: 'n',
+        lines: [{ description: 'Rice', quantity: '3', unit: 'kg', unitPrice: '100', taxable: false }],
+      });
+      expect(edit.status).toBe(200);
+      expect(edit.body.data).toMatchObject({ txnDate: '2025-08-02', dueDate: null, externalRef: 'REF-1' });
+      expect(edit.body.data.totals.total).toBe('300.00');
+    });
+
+    it('records who made it and an audit entry', async () => {
         const c = await newContact();
         const doc = await created(c.id, { post: true });
         expect(doc.createdBy).toMatchObject({ id: owner.user.id });
