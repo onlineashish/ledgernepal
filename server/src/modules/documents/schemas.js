@@ -51,6 +51,8 @@ export const listDocumentsQuery = z
     from: isoDate('From date').optional(),
     to: isoDate('To date').optional(),
     status: z.enum(['draft', 'posted', 'voided', 'all']).default('all'),
+    // How much has been paid (posted documents only): not at all, in part, in full, not yet in full, or past the due date.
+    payment: z.enum(['all', 'unpaid', 'partial', 'paid', 'open', 'overdue']).default('all'),
     q: z.string().trim().max(100, 'Search text is too long').optional(),
     page: z.coerce.number().int().min(1).max(100_000).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(25),

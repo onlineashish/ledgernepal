@@ -1,4 +1,5 @@
-import { addDays } from '@ledgernepal/shared/dates';
+import { isOverdue, paymentStatus } from '@ledgernepal/shared/allocation';
+import { addDays, todayInNepal } from '@ledgernepal/shared/dates';
 import { calculateDocument } from '@ledgernepal/shared/invoice';
 import { MoneyError, fromPaisa, toPaisa } from '@ledgernepal/shared/money';
 import { conflict, notFound, validationFailed } from '../../lib/errors.js';
@@ -6,6 +7,7 @@ import { writeAudit } from '../../lib/audit.js';
 import { nextReference } from '../../lib/sequences.js';
 import { withTransaction } from '../../db/pool.js';
 import * as ledgerRepo from '../ledger/repo.js';
+import * as settlementsRepo from '../settlements/repo.js';
 import { lockPostableContact } from '../ledger/service.js';
 import * as repo from './repo.js';
 
@@ -20,7 +22,20 @@ const canSeeCreators = (req) => req.business.permissions.has('users.view');
 
 // ------------------------------------------------------------------ shaping
 
-const header = (row) => ({
+/** How much of a posted document has been paid. Drafts and voided documents have no payment status. */
+function paymentInfo(row, today) {
+  if (row.status !== 'posted') return { paid: null, outstanding: null, paymentStatus: null, overdue: false };
+  const total = toPaisa(row.total);
+  const paid = toPaisa(row.paid);
+  return {
+    paid: row.paid,
+    outstanding: fromPaisa(total - paid),
+    paymentStatus: paymentStatus(total, paid),
+    overdue: isOverdue({ dueDate: row.due_date, outstanding: total - paid, today }),
+  };
+}
+
+const header = (row, today = todayInNepal()) => ({
   id: row.id,
   status: row.status,
   referenceNo: row.reference_no,
@@ -30,17 +45,20 @@ const header = (row) => ({
   description: row.description,
   contact: { id: row.contact_id, name: row.contact_name },
   total: row.total,
+  ...paymentInfo(row, today),
   createdAt: row.created_at,
   postedAt: row.posted_at,
   voidedAt: row.voided_at,
 });
 
-function toDocument(row, lines, req) {
+function toDocument(row, lines, payments, req) {
   return {
     ...header(row),
     type: row.type,
     notes: row.notes,
     voidReason: row.void_reason,
+    // The receipts / payments currently applied to this document.
+    payments: payments.map((p) => ({ id: p.id, amount: p.amount, payment: { id: p.payment_id, type: p.type, referenceNo: p.reference_no, txnDate: p.txn_date, method: p.payment_method } })),
     createdBy: canSeeCreators(req) && row.created_by ? { id: row.created_by, fullName: row.created_by_name } : null,
     totals: {
       subtotal: row.subtotal,
@@ -89,7 +107,8 @@ async function load(db, req, type, id, { forUpdate = false } = {}) {
 
 async function loadFull(db, req, type, id) {
   const row = await load(db, req, type, id);
-  return toDocument(row, await repo.findLines(db, req.business.id, id), req);
+  const [lines, payments] = await Promise.all([repo.findLines(db, req.business.id, id), repo.findPayments(db, req.business.id, id)]);
+  return toDocument(row, lines, payments, req);
 }
 
 // ------------------------------------------------------------------ building a document from a request
@@ -184,8 +203,9 @@ export function create({ pool, req, type }, body) {
 export const get = ({ pool, req, type }, id) => loadFull(pool, req, type, id);
 
 export async function list({ pool, req, type }, query) {
-  const { rows, total } = await repo.listDocuments(pool, req.business.id, type, query);
-  return { data: rows.map(header), meta: { page: query.page, pageSize: query.pageSize, total } };
+  const today = todayInNepal(); // "overdue" means past its due date as of today in Nepal
+  const { rows, total } = await repo.listDocuments(pool, req.business.id, type, { ...query, today });
+  return { data: rows.map((row) => header(row, today)), meta: { page: query.page, pageSize: query.pageSize, total } };
 }
 
 // ------------------------------------------------------------------ change
@@ -289,8 +309,13 @@ export function voidDocument({ pool, req, type }, id, { reason }) {
     const row = await load(tx, req, type, id, { forUpdate: true });
     if (row.status === 'draft') throw conflict('A draft is deleted, not voided');
     if (row.status === 'voided') throw conflict('This document has already been voided');
+    // Money applied to this document is released first: those receipts/payments go back to being advances.
+    const released = await settlementsRepo.cancelAllocationsOfDocument(tx, req.business.id, id, req.auth.user.id);
     await ledgerRepo.voidPosted(tx, { businessId: req.business.id, userId: req.auth.user.id, id, reason });
-    await audit(tx, req, type, 'void', row, { before: snapshot(row), metadata: { reason } });
+    await audit(tx, req, type, 'void', row, {
+      before: snapshot(row),
+      metadata: { reason, releasedPayments: released.length, releasedAmount: fromPaisa(released.reduce((sum, r) => sum + toPaisa(r.amount), 0n)) },
+    });
     return loadFull(tx, req, type, id);
   });
 }

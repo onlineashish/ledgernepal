@@ -156,7 +156,14 @@ The invoice discount is spread *before* VAT, so VAT is charged on the reduced pr
 A document's due date is the one you give; if you give none, it is the document date plus the business's default credit days;
 if the business has set no credit days, there is no due date and the document is never overdue.
 
-## 11. Still to come (documented when built)
+## 11. Receipts, payments and allocation
 
-Receipts and payments with allocation to invoices and advances, paid status, overdue reports. Allocation never changes a
-contact's balance: only posted transactions do.
+- A **receipt** (money in) is a credit; a **payment** (money out) is a debit. Both are posted immediately, numbered `RC-`/`PM-`, and immutable except description, notes and reference; they can be voided.
+- A receipt may be **applied** to sales invoices, a payment to purchase bills, of the same contact, posted only. The total applied never exceeds the receipt/payment amount, and the total applied to a document never exceeds its total. The database enforces this, including for simultaneous requests.
+- The part not applied is an **advance**. It still counts toward the contact's balance. Applying or re-applying never changes any balance: only posted transactions do.
+- A document is **unpaid**, **partially paid** or **paid** from its live allocations. It is **overdue** when it has a due date in the past and still owes something (drafts and voided documents never are).
+- Voiding a receipt/payment releases its allocations. Voiding an invoice/bill releases the payments applied to it, which become advances. The database refuses to void a document that still has live allocations.
+
+## 12. Still to come (documented when built)
+
+Dashboard totals and overdue reports, print and CSV export.

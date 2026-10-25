@@ -3,15 +3,23 @@
 
 const escapeLike = (text) => text.replace(/[\\%_]/g, '\\$&');
 
+// How much of a document has been paid: the live allocations of receipts/payments to it.
+const PAID_LATERAL = `
+  LEFT JOIN LATERAL (
+    SELECT SUM(a.amount) AS paid FROM payment_allocations a
+     WHERE a.business_id = t.business_id AND a.invoice_txn_id = t.id AND a.status = 'active') al ON true`;
+
 const HEADER_SELECT = `
   SELECT t.id, t.type, t.status, t.effect, t.txn_date, t.due_date, t.reference_no, t.external_ref, t.description, t.notes,
          t.subtotal, t.discount_total, t.taxable_total, t.non_taxable_total, t.tax_total, t.total,
          t.contact_id, c.name AS contact_name,
          t.created_at, t.created_by, cu.full_name AS created_by_name,
-         t.posted_at, t.voided_at, t.void_reason
+         t.posted_at, t.voided_at, t.void_reason,
+         COALESCE(al.paid, 0)::numeric(16, 2) AS paid
     FROM transactions t
     JOIN contacts c ON c.business_id = t.business_id AND c.id = t.contact_id
-    LEFT JOIN users cu ON cu.id = t.created_by`;
+    LEFT JOIN users cu ON cu.id = t.created_by
+    ${PAID_LATERAL}`;
 
 export async function findDocument(db, businessId, type, id, { forUpdate = false } = {}) {
   const { rows } = await db.query(
@@ -101,19 +109,44 @@ export async function getTaxSettings(db, businessId) {
   return rows[0];
 }
 
-export async function listDocuments(db, businessId, type, { contactId, from, to, status, q, page, pageSize }) {
+export async function listDocuments(db, businessId, type, { contactId, from, to, status, payment, today, q, page, pageSize }) {
   const pattern = q ? `%${escapeLike(q)}%` : null;
+  // `payment` narrows POSTED documents by how much has been paid: unpaid, partial, paid, open (not fully paid), overdue.
   const filter = `
     t.business_id = $1 AND t.type = $2
     AND ($3::uuid IS NULL OR t.contact_id = $3)
     AND ($4::date IS NULL OR t.txn_date >= $4) AND ($5::date IS NULL OR t.txn_date <= $5)
     AND ($6::text = 'all' OR t.status = $6)
     AND ($7::text IS NULL OR t.reference_no ILIKE $7 ESCAPE '\\' OR t.external_ref ILIKE $7 ESCAPE '\\'
-         OR t.description ILIKE $7 ESCAPE '\\' OR c.name ILIKE $7 ESCAPE '\\')`;
-  const params = [businessId, type, contactId ?? null, from ?? null, to ?? null, status, pattern];
+         OR t.description ILIKE $7 ESCAPE '\\' OR c.name ILIKE $7 ESCAPE '\\')
+    AND ($8::text = 'all' OR (t.status = 'posted' AND CASE $8::text
+           WHEN 'unpaid'  THEN COALESCE(al.paid, 0) = 0
+           WHEN 'partial' THEN COALESCE(al.paid, 0) > 0 AND COALESCE(al.paid, 0) < t.total
+           WHEN 'paid'    THEN COALESCE(al.paid, 0) >= t.total
+           WHEN 'open'    THEN COALESCE(al.paid, 0) < t.total
+           WHEN 'overdue' THEN COALESCE(al.paid, 0) < t.total AND t.due_date IS NOT NULL AND t.due_date < $9::date
+         END))`;
+  const params = [businessId, type, contactId ?? null, from ?? null, to ?? null, status, pattern, payment, today];
   const [list, count] = await Promise.all([
-    db.query(`${HEADER_SELECT} WHERE ${filter} ORDER BY t.txn_date DESC, t.created_at DESC, t.id LIMIT $8 OFFSET $9`, [...params, pageSize, (page - 1) * pageSize]),
-    db.query(`SELECT count(*)::int AS total FROM transactions t JOIN contacts c ON c.business_id = t.business_id AND c.id = t.contact_id WHERE ${filter}`, params),
+    db.query(`${HEADER_SELECT} WHERE ${filter} ORDER BY t.txn_date DESC, t.created_at DESC, t.id LIMIT $10 OFFSET $11`, [...params, pageSize, (page - 1) * pageSize]),
+    db.query(
+      `SELECT count(*)::int AS total FROM transactions t
+         JOIN contacts c ON c.business_id = t.business_id AND c.id = t.contact_id
+         ${PAID_LATERAL} WHERE ${filter}`,
+      params,
+    ),
   ]);
   return { rows: list.rows, total: count.rows[0].total };
+}
+
+/** The receipts / payments currently applied to a document, newest first. */
+export async function findPayments(db, businessId, documentId) {
+  const { rows } = await db.query(
+    `SELECT a.id, a.amount, p.id AS payment_id, p.type, p.reference_no, p.txn_date, p.payment_method
+       FROM payment_allocations a JOIN transactions p ON p.business_id = a.business_id AND p.id = a.payment_txn_id
+      WHERE a.business_id = $1 AND a.invoice_txn_id = $2 AND a.status = 'active'
+      ORDER BY p.txn_date DESC, p.reference_no DESC`,
+    [businessId, documentId],
+  );
+  return rows;
 }

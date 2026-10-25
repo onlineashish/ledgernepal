@@ -8,6 +8,7 @@
     "./money": "./money.js",
     "./ledger": "./ledger.js",
     "./invoice": "./invoice.js",
+    "./allocation": "./allocation.js",
     "./dates": "./dates.js"
   },
   "dependencies": {

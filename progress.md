@@ -10,7 +10,7 @@
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
 | 3. Authentication & authorization | ✅ Done (3a–3e). 646 automated tests passing (shared 119, server 422, client 105). Branch `phase3-auth`, ready to merge. |
-| 4. Core business features | 🟡 In progress — 4a–4d done on branch `phase4-ledger` (ledger engine, contact & ledger screens, sales & purchases engine, sales & purchases screens + Settings); 4e receipts & payments next |
+| 4. Core business features | 🟡 In progress — 4a–4e done on branch `phase4-ledger` (ledger engine, contact & ledger screens, sales & purchases engine, sales & purchases screens + Settings, receipts & payments server); 4f receipts & payments screens next |
 | 5. Hardening | ⚪ Not started |
 
 Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests passing)
@@ -170,8 +170,13 @@ Known gaps / later: Settings UI for per-member permission overrides and ownershi
   - Not checked in a real browser. Please try: Settings → turn on VAT with your rate → New sales invoice → add items with VAT → Save and post → open the contact → Void.
   - **Not built yet:** paid / outstanding amounts and receipts & payments (4e–4f); print and PDF (4h); "copy as new draft".
   - **Fix after first use (2026-10-25):** the main **Ledger** page listed only direct entries and opening balances, so a posted sales invoice showed in the customer's account but not on the Ledger page. It now lists every posted or voided transaction (never drafts): invoices, bills, direct entries, opening balances (and receipts/payments when they exist), each labelled, with invoices and bills linking to their own page, a "type" filter, and a plain-words "they owe you more / less" under each amount. `GET /api/ledger/entries` accepts `type=sale|purchase|receipt|payment|ledger_entry|opening_balance|all`; invoices report `direction: null` because they have no You gave / You got choice. Void/correct of entries is still only for direct entries. Regression tests for sales and purchases + client; mutation-checked (restoring the old restriction fails the new test). Whole repo 1,248/1,248 (154 + 843 + 251).
-- [ ] Receipts & payments + allocations
-- [ ] Paid status / overdue / consistency tests
+- [x] **4e Receipts & payments with allocations (server)** (`server/src/modules/settlements`, `shared/allocation.js`, migration 007)
+  - `/api/receipts` (money in, settles sales invoices, a credit) and `/api/payments` (money out, settles purchase bills, a debit): create, list, get, text-only edit, void, `PUT /:id/allocations` (replace), `POST /:id/auto-allocate` (oldest first), `GET /open-documents?contactId` (the "apply to…" picker). Numbers `RC-`/`PM-` per fiscal year; six methods (cash, bank transfer, cheque, eSewa, Khalti, other).
+  - **Allocation**: a receipt/payment may be applied to posted documents of the same contact; total applied ≤ the amount and ≤ each document's total. What is left is an **advance** (still counts toward the balance). Applying never changes a balance. Invoices/bills now report `paid`, `outstanding`, `paymentStatus` (unpaid / partially_paid / paid), `overdue`, and the payments applied; the list takes `payment=unpaid|partial|paid|open|overdue`.
+  - **Voiding** a receipt/payment releases its allocations; voiding an invoice releases the payments applied to it (they become advances). The database enforces all of it (pairing, same contact, posted, no over-allocation under simultaneous requests via ordered row locks, void blocked while allocations are live), so a bug in the app cannot over-allocate.
+  - **Tests (4e):** shared +12, DB rules 19, API 52 per kind (104), run identically for receipts and payments. Server 966/966 passing. Client: one test (`documents.test.jsx`, "starts with one empty row…") timed out once during the full parallel run and passed 3/3 alone, so it is load-sensitive; this step did not touch the client.
+  - **Known gaps:** the role matrix and cross-business isolation suites do not list the new endpoints separately (the route-guard coverage test and each suite's own other-business checks cover them); the closing "books stay consistent" test is a light sanity check, not an independent recomputation. No screens yet (4f).
+- [x] Paid status / overdue (server, in 4e)
 - [ ] Dashboard & reports
 - [ ] Print & CSV export
 - [ ] Settings + BS/AD everywhere

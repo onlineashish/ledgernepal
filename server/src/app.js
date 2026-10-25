@@ -19,6 +19,7 @@ import { documentRoutes } from './modules/documents/routes.js';
 import { invitationRoutes } from './modules/invitations/routes.js';
 import { ledgerRoutes } from './modules/ledger/routes.js';
 import { settingsRoutes } from './modules/settings/routes.js';
+import { settlementRoutes } from './modules/settlements/routes.js';
 import { userRoutes } from './modules/users/routes.js';
 import { healthRoutes } from './modules/health/routes.js';
 
@@ -72,6 +73,8 @@ export function createApp({ config, logger, pool, clientDist, rateLimit = {}, ma
   mount('/api/contacts', contactRoutes({ pool, guards }));
   mount('/api/ledger', ledgerRoutes({ pool, guards }));
   mount('/api/sales', documentRoutes({ pool, guards, type: 'sale', perms: { view: 'sales.view', create: 'sales.create', update: 'sales.update', void: 'sales.void' } }));
+  mount('/api/receipts', settlementRoutes({ pool, guards, kind: 'receipt', perms: { view: 'receipts.view', create: 'receipts.create', void: 'receipts.void' } }));
+  mount('/api/payments', settlementRoutes({ pool, guards, kind: 'payment', perms: { view: 'payments.view', create: 'payments.create', void: 'payments.void' } }));
   mount('/api/purchases', documentRoutes({ pool, guards, type: 'purchase', perms: { view: 'purchases.view', create: 'purchases.create', update: 'purchases.update', void: 'purchases.void' } }));
   mount('/api/users', userRoutes({ config, pool, guards }));
   mount('/api/invitations', invitationRoutes({ config, pool, rateLimiters, guards }));
