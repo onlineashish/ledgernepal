@@ -1,8 +1,15 @@
 // Every function takes `businessId` first and EVERY query filters on it. That is the rule that
 // keeps businesses apart; a contact id from another business simply does not match.
 
-const COLUMNS = `id, name, is_customer, is_supplier, is_partner, phone, email, address,
-                 pan_number, vat_number, notes, archived_at, created_at, updated_at`;
+const BASE_COLUMNS = `id, name, is_customer, is_supplier, is_partner, phone, email, address,
+                      pan_number, vat_number, notes, archived_at, created_at, updated_at`;
+
+// Balance = debits - credits over POSTED transactions (docs/accounting-conventions.md). It is always
+// calculated here, never stored, so it cannot disagree with the ledger.
+const balanceSql = (alias) => `COALESCE((SELECT SUM(CASE tr.effect WHEN 'debit' THEN tr.total ELSE -tr.total END)
+                     FROM transactions tr
+                    WHERE tr.business_id = ${alias}.business_id AND tr.contact_id = ${alias}.id AND tr.status = 'posted'), 0)::numeric(16, 2) AS balance`;
+const columns = (alias, withBalance) => (withBalance ? `${BASE_COLUMNS}, ${balanceSql(alias)}` : BASE_COLUMNS);
 
 // camelCase API field -> database column. Update statements are built only from this map,
 // so request keys can never become SQL.
@@ -23,7 +30,7 @@ export async function insertContact(db, businessId, userId, data) {
     `INSERT INTO contacts (business_id, name, is_customer, is_supplier, is_partner,
                            phone, email, address, pan_number, vat_number, notes, created_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-     RETURNING ${COLUMNS}`,
+     RETURNING ${columns('contacts', true)}`,
     [
       businessId,
       data.name,
@@ -42,9 +49,9 @@ export async function insertContact(db, businessId, userId, data) {
   return rows[0];
 }
 
-export async function findContact(db, businessId, id, { forUpdate = false } = {}) {
+export async function findContact(db, businessId, id, { forUpdate = false, withBalance = false } = {}) {
   const { rows } = await db.query(
-    `SELECT ${COLUMNS} FROM contacts WHERE business_id = $1 AND id = $2 ${forUpdate ? 'FOR UPDATE' : ''}`,
+    `SELECT ${columns('contacts', withBalance)} FROM contacts WHERE business_id = $1 AND id = $2 ${forUpdate ? 'FOR UPDATE' : ''}`,
     [businessId, id],
   );
   return rows[0] ?? null;
@@ -65,7 +72,7 @@ export async function listContacts(db, businessId, { q, type, archived, page, pa
 
   const [list, count] = await Promise.all([
     db.query(
-      `SELECT ${COLUMNS} FROM contacts c WHERE ${filter}
+      `SELECT ${columns('c', true)} FROM contacts c WHERE ${filter}
        ORDER BY lower(c.name), c.id LIMIT $5 OFFSET $6`,
       [...params, pageSize, (page - 1) * pageSize],
     ),
@@ -90,7 +97,7 @@ export async function updateContact(db, businessId, userId, id, data) {
   const { rows } = await db.query(
     `UPDATE contacts SET ${sets.join(', ')}, updated_by = $3
       WHERE business_id = $1 AND id = $2
-      RETURNING ${COLUMNS}`,
+      RETURNING ${columns('contacts', true)}`,
     values,
   );
   return rows[0] ?? null;
@@ -103,7 +110,7 @@ export async function setArchived(db, businessId, userId, id, archived) {
             archived_by = CASE WHEN $4 THEN $3::uuid END,
             updated_by = $3
       WHERE business_id = $1 AND id = $2
-      RETURNING ${COLUMNS}`,
+      RETURNING ${columns('contacts', true)}`,
     [businessId, id, userId, archived],
   );
   return rows[0] ?? null;

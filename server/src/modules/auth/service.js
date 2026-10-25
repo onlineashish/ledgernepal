@@ -57,6 +57,7 @@ export async function describeSession(pool, { sessionId, csrfToken, user, busine
     activeBusiness: business && {
       id: business.id,
       name: business.name,
+      dateDisplay: business.dateDisplay,
       roleKey: business.roleKey,
       roleName: business.roleName,
       permissions: [...business.permissions].sort(),

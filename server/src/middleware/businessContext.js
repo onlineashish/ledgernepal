@@ -9,7 +9,7 @@ import * as repo from '../modules/auth/repo.js';
  */
 export async function loadBusinessContext(db, userId, businessId) {
   const { rows } = await db.query(
-    `SELECT bu.id AS membership_id, bu.is_owner, b.id AS business_id, b.name AS business_name,
+    `SELECT bu.id AS membership_id, bu.is_owner, b.id AS business_id, b.name AS business_name, bs.date_display,
             r.key AS role_key, r.name AS role_name, r.rank AS role_rank,
             COALESCE((SELECT array_agg(p.key) FROM role_permissions rp
                         JOIN permissions p ON p.id = rp.permission_id
@@ -22,6 +22,7 @@ export async function loadBusinessContext(db, userId, businessId) {
                        WHERE o.business_user_id = bu.id AND o.effect = 'deny'), '{}') AS denies
        FROM business_users bu
        JOIN businesses b ON b.id = bu.business_id
+       LEFT JOIN business_settings bs ON bs.business_id = b.id
        JOIN roles r ON r.id = bu.role_id
       WHERE bu.user_id = $1 AND bu.business_id = $2
         AND bu.status = 'active' AND b.status = 'active'`,
@@ -32,6 +33,7 @@ export async function loadBusinessContext(db, userId, businessId) {
   return {
     id: row.business_id,
     name: row.business_name,
+    dateDisplay: row.date_display ?? 'BS', // how this business prefers dates shown: BS or AD
     membershipId: row.membership_id,
     roleKey: row.role_key,
     roleName: row.role_name,

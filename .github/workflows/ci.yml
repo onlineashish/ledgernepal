@@ -29,7 +29,7 @@ jobs:
   # than on a developer machine: the files run in parallel and the limit is generous.
   server:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     concurrency:
       group: ledgernepal-test-database
       cancel-in-progress: false
@@ -45,3 +45,6 @@ jobs:
         env:
           # Repository secret pointing at the Neon *test* branch. Never the real database.
           TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          # The random bookkeeping test replays a new random sequence each run (the seed is printed on failure).
+          # Fewer steps than a developer run because every query is slower from GitHub's servers.
+          LEDGER_FUZZ_STEPS: 60

@@ -33,7 +33,7 @@ describe('toPaisa', () => {
     expect(() => toPaisa(1.1 + 2.2)).toThrow(MoneyError);
   });
 
-  it.each(['', ' ', 'abc', '1.234', '1,250.00', '1e5', '--5', '5.', '.5', '1.2.3', '१२३', '0x10', '1000000000000.00'])(
+  it.each(['', ' ', 'abc', '1.234', '1,250.00', '1e5', '--5', '5.', '.5', '1.2.3', '१२३', '0x10', '100000000000000.00'])(
     'rejects %j',
     (input) => {
       expect(() => toPaisa(input)).toThrow(MoneyError);
@@ -70,8 +70,8 @@ describe('fromPaisa', () => {
     }
   });
 
-  it('refuses values that do not fit NUMERIC(14,2) and non-BigInt input', () => {
-    expect(() => fromPaisa(100_000_000_000_000n)).toThrow(/too large/i);
+  it('refuses values wider than the 14 digits a sum can hold, and non-BigInt input', () => {
+    expect(() => fromPaisa(10_000_000_000_000_000n)).toThrow(/too large/i);
     expect(() => fromPaisa(12.5)).toThrow(MoneyError);
     expect(() => fromPaisa('100')).toThrow(MoneyError);
   });

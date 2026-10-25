@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
+import * as ledger from '../ledger/service.js';
+import { openingBalanceBody } from '../ledger/schemas.js';
 import { contactIdParams, createContactBody, listContactsQuery, updateContactBody } from './schemas.js';
 import * as service from './service.js';
 
@@ -27,6 +29,20 @@ export function contactRoutes({ pool, guards }) {
       res.json({ data: await service.update({ ...deps, req }, req.valid.params.id, req.valid.body) });
     },
   );
+
+  // Opening balance: the first one needs ledger.create; replacing it also needs ledger.correct (checked in the service).
+  router.put(
+    '/:id/opening-balance',
+    ...guards.tenant('ledger.create'),
+    validate({ params: contactIdParams, body: openingBalanceBody }),
+    async (req, res) => {
+      res.json({ data: await ledger.putOpeningBalance({ ...deps, req }, req.valid.params.id, req.valid.body) });
+    },
+  );
+
+  router.delete('/:id/opening-balance', ...guards.tenant('ledger.correct'), validate({ params: contactIdParams }), async (req, res) => {
+    res.json({ data: await ledger.clearOpeningBalance({ ...deps, req }, req.valid.params.id) });
+  });
 
   router.post('/:id/archive', ...guards.tenant('contacts.archive'), validate({ params: contactIdParams }), async (req, res) => {
     res.json({ data: await service.setArchived({ ...deps, req }, req.valid.params.id, true) });

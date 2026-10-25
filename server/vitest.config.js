@@ -12,7 +12,10 @@ export default defineConfig({
     // Rules for new tests: never assert on table-wide counts or delete other files' data.
     fileParallelism: true,
     maxWorkers: 4,
-    testTimeout: 30_000,
-    hookTimeout: 60_000,
+    // A test is a chain of real HTTP calls and database round trips. On a developer machine each takes well under
+    // a second; from GitHub's servers to Neon each can take 2-3 s, so a test of a dozen calls needs a minute or more.
+    // The limit only catches a test that hangs, so it is generous.
+    testTimeout: 120_000,
+    hookTimeout: 120_000,
   },
 });

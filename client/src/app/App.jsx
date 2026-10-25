@@ -3,34 +3,27 @@ import { AcceptInvitePage } from '../auth/AcceptInvitePage.jsx';
 import { ChooseBusinessPage } from '../auth/ChooseBusinessPage.jsx';
 import { ForgotPasswordPage } from '../auth/ForgotPasswordPage.jsx';
 import { ResetPasswordPage } from '../auth/ResetPasswordPage.jsx';
+import { ContactDetailPage } from '../features/contacts/ContactDetailPage.jsx';
+import { ContactFormPage } from '../features/contacts/ContactFormPage.jsx';
+import { ContactsPage } from '../features/contacts/ContactsPage.jsx';
+import { LedgerEntryFormPage } from '../features/ledger/LedgerEntryFormPage.jsx';
+import { LedgerPage } from '../features/ledger/LedgerPage.jsx';
 import { AccountPage } from '../features/account/AccountPage.jsx';
 import { LoginPage } from '../auth/LoginPage.jsx';
 import { RegisterPage } from '../auth/RegisterPage.jsx';
 import { PublicOnly, RequireAuth, RequirePermission } from '../auth/guards.jsx';
 import { DashboardPage } from '../features/dashboard/DashboardPage.jsx';
-import { NotFoundPage, PlaceholderPage } from '../features/common/PlaceholderPage.jsx';
+import { NotFoundPage } from '../features/common/PlaceholderPage.jsx';
+import { ReportsPage } from '../features/reports/ReportsPage.jsx';
+import { DocumentDetailPage } from '../features/documents/DocumentDetailPage.jsx';
+import { DocumentFormPage } from '../features/documents/DocumentFormPage.jsx';
+import { DocumentsPage } from '../features/documents/DocumentsPage.jsx';
+import { SettlementDetailPage } from '../features/settlements/SettlementDetailPage.jsx';
+import { SettlementFormPage } from '../features/settlements/SettlementFormPage.jsx';
+import { SettlementsPage } from '../features/settlements/SettlementsPage.jsx';
+import { SettingsPage } from '../features/settings/SettingsPage.jsx';
 import { TeamPage } from '../features/team/TeamPage.jsx';
-import { t } from '../i18n/en.js';
 import { AppLayout } from './AppLayout.jsx';
-
-const PHASE4 = 'Phase 4 (core business features)';
-
-// [path, title, permission(s) required to open it]. One placeholder per route until the real feature replaces it.
-const PLACEHOLDER_ROUTES = [
-  ['contacts', t('nav.contacts'), 'contacts.view'],
-  ['contacts/new', t('quick.addContact'), 'contacts.create'],
-  ['sales', t('nav.sales'), 'sales.view'],
-  ['sales/new', t('quick.createSale'), 'sales.create'],
-  ['purchases', t('nav.purchases'), 'purchases.view'],
-  ['purchases/new', t('quick.recordPurchase'), 'purchases.create'],
-  ['receipts-payments', t('nav.receiptsPayments'), ['receipts.view', 'payments.view']],
-  ['receipts-payments/new-receipt', t('quick.recordReceipt'), 'receipts.create'],
-  ['receipts-payments/new-payment', t('quick.recordPayment'), 'payments.create'],
-  ['ledger', t('nav.viewLedger'), 'ledger.view'],
-  ['ledger/new', t('nav.addLedgerEntry'), 'ledger.create'],
-  ['reports', t('nav.reports'), 'reports.view'],
-  ['settings', t('nav.settings'), 'business.view'],
-];
 
 export function App() {
   return (
@@ -56,18 +49,28 @@ export function App() {
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="account" element={<AccountPage />} />
+          <Route path="sales" element={<RequirePermission permission="sales.view"><DocumentsPage kind="sale" /></RequirePermission>} />
+          <Route path="sales/new" element={<RequirePermission permission="sales.create"><DocumentFormPage kind="sale" mode="create" /></RequirePermission>} />
+          <Route path="sales/:id" element={<RequirePermission permission="sales.view"><DocumentDetailPage kind="sale" /></RequirePermission>} />
+          <Route path="sales/:id/edit" element={<RequirePermission permission="sales.update"><DocumentFormPage kind="sale" mode="edit" /></RequirePermission>} />
+          <Route path="purchases" element={<RequirePermission permission="purchases.view"><DocumentsPage kind="purchase" /></RequirePermission>} />
+          <Route path="purchases/new" element={<RequirePermission permission="purchases.create"><DocumentFormPage kind="purchase" mode="create" /></RequirePermission>} />
+          <Route path="purchases/:id" element={<RequirePermission permission="purchases.view"><DocumentDetailPage kind="purchase" /></RequirePermission>} />
+          <Route path="purchases/:id/edit" element={<RequirePermission permission="purchases.update"><DocumentFormPage kind="purchase" mode="edit" /></RequirePermission>} />
+          <Route path="receipts-payments" element={<RequirePermission permission={['receipts.view', 'payments.view']}><SettlementsPage /></RequirePermission>} />
+          <Route path="receipts-payments/new-receipt" element={<RequirePermission permission="receipts.create"><SettlementFormPage kind="receipt" /></RequirePermission>} />
+          <Route path="receipts-payments/new-payment" element={<RequirePermission permission="payments.create"><SettlementFormPage kind="payment" /></RequirePermission>} />
+          <Route path="receipts-payments/receipts/:id" element={<RequirePermission permission="receipts.view"><SettlementDetailPage kind="receipt" /></RequirePermission>} />
+          <Route path="receipts-payments/payments/:id" element={<RequirePermission permission="payments.view"><SettlementDetailPage kind="payment" /></RequirePermission>} />
+          <Route path="settings" element={<RequirePermission permission="business.view"><SettingsPage /></RequirePermission>} />
+          <Route path="contacts" element={<RequirePermission permission="contacts.view"><ContactsPage /></RequirePermission>} />
+          <Route path="contacts/new" element={<RequirePermission permission="contacts.create"><ContactFormPage mode="create" /></RequirePermission>} />
+          <Route path="contacts/:id" element={<RequirePermission permission="contacts.view"><ContactDetailPage /></RequirePermission>} />
+          <Route path="contacts/:id/edit" element={<RequirePermission permission="contacts.update"><ContactFormPage mode="edit" /></RequirePermission>} />
+          <Route path="ledger" element={<RequirePermission permission="ledger.view"><LedgerPage /></RequirePermission>} />
+          <Route path="ledger/new" element={<RequirePermission permission="ledger.create"><LedgerEntryFormPage /></RequirePermission>} />
           <Route path="team" element={<RequirePermission permission="users.view"><TeamPage /></RequirePermission>} />
-          {PLACEHOLDER_ROUTES.map(([path, title, permission]) => (
-            <Route
-              key={path}
-              path={path}
-              element={
-                <RequirePermission permission={permission}>
-                  <PlaceholderPage title={title} phase={PHASE4} />
-                </RequirePermission>
-              }
-            />
-          ))}
+          <Route path="reports" element={<RequirePermission permission="reports.view"><ReportsPage /></RequirePermission>} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

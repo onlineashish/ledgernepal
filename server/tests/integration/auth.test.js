@@ -34,7 +34,7 @@ describe('POST /api/auth/register', () => {
     expect(res.status).toBe(201);
     const { data } = res.body;
     expect(data.user).toMatchObject({ email, fullName: 'Sita Sharma', isPlatformAdmin: false });
-    expect(data.activeBusiness).toMatchObject({ name: 'Sita Traders', roleKey: 'owner' });
+    expect(data.activeBusiness).toMatchObject({ name: 'Sita Traders', roleKey: 'owner', dateDisplay: 'BS' });
     expect(data.activeBusiness.permissions).toContain('users.manage');
     expect(data.csrfToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(data.memberships).toHaveLength(1);
