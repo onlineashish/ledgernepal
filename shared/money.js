@@ -13,9 +13,17 @@ export class MoneyError extends Error {
   }
 }
 
-// NUMERIC(14,2) allows 12 digits before the decimal point.
-const MAX_WHOLE_DIGITS = 12;
-const AMOUNT_RE = /^(-)?(\d{1,12})(?:\.(\d{1,2}))?$/;
+// One amount (an invoice total, a receipt) is stored as NUMERIC(14,2): at most 12 digits before the decimal point.
+// Sums of many (a contact's balance, a report total) are held in NUMERIC(16,2), so they may use 14. toPaisa and
+// fromPaisa accept the wider range so a big balance can still be read and shown; the INPUT limit is enforced where
+// amounts are entered (see MAX_AMOUNT_PAISA).
+const MAX_WHOLE_DIGITS = 14;
+const AMOUNT_RE = /^(-)?(\d{1,14})(?:\.(\d{1,2}))?$/;
+export const MAX_AMOUNT_PAISA = 99_999_999_999_999n;
+export const MAX_AMOUNT_TEXT = '999,999,999,999.99';
+
+/** Is this one amount small enough to be stored (at most 999,999,999,999.99)? */
+export const isStorableAmount = (paisa) => paisa <= MAX_AMOUNT_PAISA && paisa >= -MAX_AMOUNT_PAISA;
 const QUANTITY_RE = /^(\d{1,11})(?:\.(\d{1,3}))?$/;
 const RATE_RE = /^(\d{1,3})(?:\.(\d{1,2}))?$/;
 
@@ -29,6 +37,7 @@ export function toPaisa(input, { allowNegative = false } = {}) {
   if (typeof input !== 'string') throw new MoneyError('Amount must be a string or number');
 
   const match = AMOUNT_RE.exec(input.trim());
+  if (!match && /^-?\d{15,}(\.\d{1,2})?$/.test(input.trim())) throw new MoneyError('Amount is too large');
   if (!match) throw new MoneyError('Enter an amount with at most 2 decimal places, e.g. 1250.50');
   const [, minus, whole, fraction = ''] = match;
   if (minus && !allowNegative) throw new MoneyError('Amount cannot be negative');

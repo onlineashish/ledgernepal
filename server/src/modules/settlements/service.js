@@ -117,7 +117,14 @@ async function allocateOldestFirst(tx, req, kind, payment) {
     open.map((d) => ({ id: d.id, txnDate: d.txn_date, referenceNo: d.reference_no, outstanding: toPaisa(d.outstanding) })),
   );
   const items = allocations.map((a) => ({ invoiceId: a.id, amount: fromPaisa(a.amount) }));
-  if (items.length > 0) await repo.insertAllocations(tx, req.business.id, payment.id, req.auth.user.id, items);
+  if (items.length > 0) {
+    // A document this receipt/payment already pays part of may be among the open ones: it gets one allocation
+    // for the combined amount (there is only ever one live allocation per payment and document).
+    const combined = new Map((await repo.findAllocations(tx, req.business.id, payment.id)).map((a) => [a.document_id, toPaisa(a.amount)]));
+    for (const a of allocations) combined.set(a.id, (combined.get(a.id) ?? 0n) + a.amount);
+    await repo.cancelAllocationsOfPayment(tx, req.business.id, payment.id, req.auth.user.id);
+    await repo.insertAllocations(tx, req.business.id, payment.id, req.auth.user.id, [...combined].map(([invoiceId, amount]) => ({ invoiceId, amount: fromPaisa(amount) })));
+  }
   return items;
 }
 

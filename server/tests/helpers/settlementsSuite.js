@@ -270,6 +270,28 @@ export function defineSettlementsSuite(k) {
       });
     });
 
+    describe('topping up a partly applied one', () => {
+      // Found by the randomized consistency test: applying the rest of a receipt that already pays PART of an
+      // invoice tried to add a second allocation for the same pair and failed with a 500.
+      it('adds to the document it already pays instead of failing, and still fills the next ones', async () => {
+        const c = await newContact();
+        const first = await makeDoc(c.id, { amount: '500', date: '2025-08-01' });
+        const second = await makeDoc(c.id, { amount: '300', date: '2025-08-05' });
+        const s = await settled(c.id, '600', { allocations: [{ invoiceId: first.id, amount: '200' }] });
+        expect(s).toMatchObject({ allocated: '200.00', unallocated: '400.00' });
+
+        const res = await owner.post(`${k.path}/${s.id}/auto-allocate`);
+        expect(res.status).toBe(200);
+        expect(res.body.data).toMatchObject({ allocated: '600.00', unallocated: '0.00' });
+        expect(res.body.data.allocations.map((a) => [a.document.id, a.amount])).toEqual([[first.id, '500.00'], [second.id, '100.00']]);
+        expect(await getDoc(first.id)).toMatchObject({ paymentStatus: 'paid', paid: '500.00' });
+        expect(await getDoc(second.id)).toMatchObject({ paymentStatus: 'partially_paid', paid: '100.00' });
+        const live = await pool.query("SELECT count(*)::int AS n FROM payment_allocations WHERE payment_txn_id = $1 AND invoice_txn_id = $2 AND status = 'active'", [s.id, first.id]);
+        expect(live.rows[0].n).toBe(1);
+        expect(await balance(c.id)).toBe(docSign * 800 + settleSign * 600);
+      });
+    });
+
     describe('changing what it is applied to', () => {
       it('moves the money from one document to another', async () => {
         const c = await newContact();

@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { isValidIsoDate } from '@ledgernepal/shared/dates';
-import { fromPaisa, toPaisa } from '@ledgernepal/shared/money';
+import { MAX_AMOUNT_TEXT, fromPaisa, isStorableAmount, toPaisa } from '@ledgernepal/shared/money';
+
+const tooLarge = (label) => `${label} is too large: the most you can enter is ${MAX_AMOUNT_TEXT}`;
 
 // Dates the books accept. The fiscal-year logic needs the BS tables, which stop shortly after 2042.
 export const BOOKS_DATE_MIN = '1990-01-01';
@@ -23,9 +25,10 @@ export const positiveAmount = (label = 'Amount') =>
     try {
       const paisa = toPaisa(value);
       if (paisa <= 0n) throw new Error(`${label} must be greater than zero`);
+      if (!isStorableAmount(paisa)) throw new Error(tooLarge(label));
       return fromPaisa(paisa);
     } catch (err) {
-      ctx.addIssue({ code: 'custom', message: err.message.startsWith('Enter an amount') ? `${label}: ${err.message}` : err.message });
+      ctx.addIssue({ code: 'custom', message: toMessage(err, label) });
       return z.NEVER;
     }
   });
@@ -37,13 +40,15 @@ export const optionalText = (label, max) =>
     z.string({ error: `${label} must be text` }).trim().max(max, `${label} must be at most ${max} characters`).nullable().optional(),
   );
 
-const toMessage = (err, label) => (err.message.startsWith('Enter an amount') ? `${label}: ${err.message}` : err.message);
+const toMessage = (err, label) => (err.message.startsWith('Enter an amount') ? `${label}: ${err.message}` : err.message === 'Amount is too large' ? tooLarge(label) : err.message);
 
 /** An NPR amount of zero or more with at most two decimals ("0" is allowed: a free item, no discount). */
 export const amountField = (label = 'Amount') =>
   z.union([z.string(), z.number()], { error: `${label} is required` }).transform((value, ctx) => {
     try {
-      return fromPaisa(toPaisa(value));
+      const paisa = toPaisa(value);
+      if (!isStorableAmount(paisa)) throw new Error(tooLarge(label));
+      return fromPaisa(paisa);
     } catch (err) {
       ctx.addIssue({ code: 'custom', message: toMessage(err, label) });
       return z.NEVER;

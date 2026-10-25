@@ -65,6 +65,36 @@ const documentEndpoints = [['sales', '/api/sales'], ['purchases', '/api/purchase
   { name: `POST ${path}/:id/void`, permission: `${noun}.void`, okStatus: 200, prepare: newDoc(path, { post: true }), call: (s, d) => s.post(`${path}/${d.id}/void`, { reason: 'matrix test void' }) },
 ]);
 
+// Receipts and payments: money in settles sales invoices, money out settles purchase bills. Create covers
+// choosing what the money is applied to and editing the notes; voiding has its own permission.
+const newSettlement = (path) => async () => {
+  const contact = await newContact();
+  const settlement = (await owner.post(path, { contactId: contact.id, txnDate: '2025-08-10', amount: '50', method: 'cash' })).body.data;
+  return { id: settlement.id, contactId: contact.id };
+};
+const settlementEndpoints = [['receipts', '/api/receipts'], ['payments', '/api/payments']].flatMap(([noun, path]) => [
+  { name: `GET ${path}`, permission: `${noun}.view`, okStatus: 200, call: (s) => s.get(path) },
+  { name: `GET ${path}/:id`, permission: `${noun}.view`, okStatus: 200, prepare: newSettlement(path), call: (s, r) => s.get(`${path}/${r.id}`) },
+  { name: `POST ${path}`, permission: `${noun}.create`, okStatus: 201, prepare: newContact, call: (s, c) => s.post(path, { contactId: c.id, txnDate: '2025-08-10', amount: '10', method: 'cash' }) },
+  { name: `GET ${path}/open-documents`, permission: `${noun}.create`, okStatus: 200, prepare: newContact, call: (s, c) => s.get(`${path}/open-documents?contactId=${c.id}`) },
+  { name: `PATCH ${path}/:id`, permission: `${noun}.create`, okStatus: 200, prepare: newSettlement(path), call: (s, r) => s.patch(`${path}/${r.id}`, { notes: 'checked' }) },
+  { name: `PUT ${path}/:id/allocations`, permission: `${noun}.create`, okStatus: 200, prepare: newSettlement(path), call: (s, r) => s.put(`${path}/${r.id}/allocations`, { allocations: [] }) },
+  { name: `POST ${path}/:id/auto-allocate`, permission: `${noun}.create`, okStatus: 200, prepare: newSettlement(path), call: (s, r) => s.post(`${path}/${r.id}/auto-allocate`) },
+  { name: `POST ${path}/:id/void`, permission: `${noun}.void`, okStatus: 200, prepare: newSettlement(path), call: (s, r) => s.post(`${path}/${r.id}/void`, { reason: 'matrix test void' }) },
+]);
+
+// Reports. Who owes what is a balance, so those need the ledger permission as well; exports need the export permission.
+const reportEndpoints = [
+  { name: 'GET /reports/dashboard', permission: 'reports.view', okStatus: 200, call: (s) => s.get('/api/reports/dashboard') },
+  { name: 'GET /reports/activity', permission: 'reports.view', okStatus: 200, call: (s) => s.get('/api/reports/activity') },
+  { name: 'GET /reports/activity?format=csv', permission: ['reports.view', 'reports.export'], okStatus: 200, call: (s) => s.get('/api/reports/activity?format=csv') },
+  { name: 'GET /reports/outstanding', permission: ['reports.view', 'ledger.view'], okStatus: 200, call: (s) => s.get('/api/reports/outstanding?side=receivable') },
+  { name: 'GET /reports/outstanding?format=csv', permission: ['reports.view', 'ledger.view', 'reports.export'], okStatus: 200, call: (s) => s.get('/api/reports/outstanding?side=payable&format=csv') },
+  { name: 'GET /reports/overdue', permission: ['reports.view', 'ledger.view'], okStatus: 200, call: (s) => s.get('/api/reports/overdue?side=receivable') },
+  { name: 'GET /reports/overdue?format=csv', permission: ['reports.view', 'ledger.view', 'reports.export'], okStatus: 200, call: (s) => s.get('/api/reports/overdue?side=payable&format=csv') },
+  { name: 'GET /ledger/contacts/:contactId/export', permission: ['ledger.view', 'reports.export'], okStatus: 200, prepare: newContact, call: (s, c) => s.get(`/api/ledger/contacts/${c.id}/export`) },
+];
+
 // `prepare` creates whatever the call needs, using the owner, so the role under test only makes the one call.
 const ENDPOINTS = [
   { name: 'GET /contacts', permission: 'contacts.view', okStatus: 200, call: (s) => s.get('/api/contacts') },
@@ -86,6 +116,8 @@ const ENDPOINTS = [
   { name: 'DELETE /contacts/:id/opening-balance', permission: 'ledger.correct', okStatus: 200, prepare: contactWithOpening, call: (s, c) => s.delete(`/api/contacts/${c.id}/opening-balance`) },
 
   ...documentEndpoints,
+  ...settlementEndpoints,
+  ...reportEndpoints,
 
   // Settings and the business profile.
   { name: 'GET /settings', permission: 'business.view', okStatus: 200, call: (s) => s.get('/api/settings') },
@@ -109,7 +141,7 @@ describe.each(ROLE_KEYS)('role: %s', (roleKey) => {
   it.each(ENDPOINTS)('$name', async ({ permission, okStatus, prepare, call }) => {
     const target = prepare ? await prepare() : undefined;
     const res = await call(sessions[roleKey], target);
-    const allowed = ROLE_PERMISSIONS[roleKey].includes(permission);
+    const allowed = [permission].flat().every((key) => ROLE_PERMISSIONS[roleKey].includes(key)); // a list means "needs all of them"
     expect(res.status, `${roleKey} -> ${permission}`).toBe(allowed ? okStatus : 403);
   });
 });

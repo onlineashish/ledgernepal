@@ -10,7 +10,7 @@
 | 1. Requirements & architecture | ✅ Approved — all defaults accepted (plan.md §13) |
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
 | 3. Authentication & authorization | ✅ Done (3a–3e). 646 automated tests passing (shared 119, server 422, client 105). Branch `phase3-auth`, ready to merge. |
-| 4. Core business features | 🟡 In progress — 4a–4e done on branch `phase4-ledger` (ledger engine, contact & ledger screens, sales & purchases engine, sales & purchases screens + Settings, receipts & payments server); 4f receipts & payments screens next |
+| 4. Core business features | ✅ Done on branch `phase4-ledger` (4a–4h: ledger, contacts, sales & purchases, receipts & payments with allocations, dashboard, reports, CSV export, printing) |
 | 5. Hardening | ⚪ Not started |
 
 Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests passing)
@@ -181,9 +181,16 @@ Known gaps / later: Settings UI for per-member permission overrides and ownershi
   - `/receipts-payments` (tabs Receipts / Payments, only those the person may view; filters: dates, method, active/voided, advances only, search); `/receipts-payments/new-receipt` and `/new-payment` (contact, amount, date, method, reference, then a table of the contact's unpaid invoices/bills with an amount box each and **Apply oldest first**; a live line says how much is applied and how much stays as an advance, and saving is blocked if more is applied than received); detail pages for each (what it paid, apply an advance later, void with reason and a warning that invoices become unpaid, edit notes).
   - Invoice and bill pages now show paid / outstanding / Unpaid-Part paid-Paid / Overdue, the receipts or payments applied, and a "Record receipt/payment" button that starts with that document applied; the lists have a Payment filter and an Outstanding column. Contact page has Record receipt / Record payment. Receipts and payments link from the Ledger and the contact account.
   - Tests: client +20 (269 total). Not checked in a real browser.
-- [ ] Dashboard & reports
-- [ ] Print & CSV export
-- [ ] Settings + BS/AD everywhere
+- [x] **4g Dashboard & reports** (`server/src/modules/reports`, `client/src/features/dashboard`, `client/src/features/reports`)
+  - `GET /api/reports/dashboard` (sales, purchases, receipts, payments for a period, default = current fiscal year; owed to you / you owe / overdue today; 10 recent transactions), `/activity` (daily or monthly, BS or AD months per the business setting, with VAT columns and totals), `/outstanding?side=receivable|payable` (customer-wise / supplier-wise balances, overdue part, search), `/overdue?side=` (documents past due that still owe money, days late). Only posted records count; drafts, voided documents and other businesses never do.
+  - Who owes what is a balance, so those figures need `ledger.view` as well as `reports.view` (the dashboard just leaves them out for someone without it). Staff have no reports; viewers read but cannot export.
+  - Screens: Dashboard with period filter (BS/AD), stat tiles linking into reports, recent transactions; `/reports` with five tabs.
+- [x] **4h Print & CSV export**
+  - `?format=csv` on every report and `GET /api/ledger/contacts/:id/export` (whole account for the dates chosen, opening and closing balance). Needs `reports.export`; every export is written to the audit log. Spreadsheet-safe: text starting with `= + - @` is neutralised, amounts stay exact numbers, UTF-8 BOM so Excel shows Nepali text.
+  - Print: the browser's print dialog (also "Save as PDF") with a print-only header carrying business name, address, PAN / VAT; navigation and buttons hidden. Print on posted invoices and bills, receipts and payments (anyone who can see them), and on reports and the contact account (needs export permission).
+  - Tests: server +39 (reports 35, account export 4); client +17 (285 total). Fixed a clock-dependent assertion in the role matrix (a substring check that matched timestamps like ":50.007Z"). Removed the "coming soon" placeholder page, now unused.
+  - **Not done:** server-generated PDF files (printing to PDF from the browser covers it for now). Not checked in a real browser, including how the printed pages look.
+- [x] Settings + BS/AD everywhere (settings screen in 4d; dates shown in BS or AD on every screen)
 
 ## Phase 5 — Hardening
 

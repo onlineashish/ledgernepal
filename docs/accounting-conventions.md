@@ -164,6 +164,9 @@ if the business has set no credit days, there is no due date and the document is
 - A document is **unpaid**, **partially paid** or **paid** from its live allocations. It is **overdue** when it has a due date in the past and still owes something (drafts and voided documents never are).
 - Voiding a receipt/payment releases its allocations. Voiding an invoice/bill releases the payments applied to it, which become advances. The database refuses to void a document that still has live allocations.
 
-## 12. Still to come (documented when built)
+## 12. Dashboard and reports
 
-Dashboard totals and overdue reports, print and CSV export.
+- Every figure is derived from POSTED transactions; drafts and voided documents are never counted. Sales, purchases, receipts and payments are totalled by transaction date inside the period (default: the current fiscal year, Shrawan 1 to the end of Ashadh). Monthly rows use Bikram Sambat months when the business shows BS dates.
+- "Owed to you" and "you owe" are today's contact balances (positive / negative), whatever the period. A customer who paid in advance therefore appears under "you owe". Overdue is the amount still outstanding on documents past their due date.
+- Balances are financial data: they need the ledger permission as well as the reports permission.
+- Exports (CSV) need the export permission and are recorded in the audit log.

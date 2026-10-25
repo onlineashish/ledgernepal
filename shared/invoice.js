@@ -16,7 +16,7 @@
 // the invoice discount exactly (largest-remainder rounding). VAT is rounded per line, then added.
 // A line is taxable only when it has a rate (`taxRate` not null); a rate of "0" is "taxable at 0%",
 // which is different from "not taxable". No rate is ever assumed here: the caller supplies it.
-import { MoneyError, allocateProportionally, multiplyByQuantity, percentOf } from './money.js';
+import { MAX_AMOUNT_TEXT, MoneyError, allocateProportionally, isStorableAmount, multiplyByQuantity, percentOf } from './money.js';
 
 export const MAX_LINES = 200;
 
@@ -36,6 +36,7 @@ export function calculateDocument({ lines, invoiceDiscount = 0n }) {
 
   const prepared = lines.map((line, i) => {
     const gross = multiplyByQuantity(line.unitPrice, line.quantity);
+    if (!isStorableAmount(gross)) throw fail(`Line ${i + 1}: quantity times price is too large (the most is ${MAX_AMOUNT_TEXT})`);
     const discount = line.discount ?? 0n;
     if (discount < 0n) throw fail(`Line ${i + 1}: discount cannot be negative`);
     if (discount > gross) throw fail(`Line ${i + 1}: discount cannot be more than the line amount`);
@@ -77,5 +78,8 @@ export function calculateDocument({ lines, invoiceDiscount = 0n }) {
     tax: sum((r) => r.tax),
     total: sum((r) => r.total),
   };
+  if (![totals.subtotal, totals.total, totals.tax].every(isStorableAmount)) {
+    throw fail(`The document total is too large (the most is ${MAX_AMOUNT_TEXT})`);
+  }
   return { lines: results, totals };
 }
