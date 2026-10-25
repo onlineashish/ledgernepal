@@ -19,7 +19,9 @@
     "db:migrate:down": "npm run db:migrate:down --workspace server",
     "db:seed": "npm run db:seed --workspace server",
     "db:status": "npm run db:status --workspace server",
-    "build": "npm run build --workspace client"
+    "build": "npm run build --workspace client",
+    "db:verify": "npm run db:verify --workspace server --",
+    "docs": "npm run docs --workspace server"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"

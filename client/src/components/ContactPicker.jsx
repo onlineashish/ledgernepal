@@ -56,19 +56,22 @@ export function ContactPicker({ value, onChange, error, label = 'Contact', autoF
       />
       {error && <p className="mt-1 text-sm text-red-700">{error}</p>}
       {open && (
-        <ul id={`${id}-list`} role="listbox" aria-label={`${label} suggestions`} className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-          {results.isPending && <li className="px-3 py-2 text-sm text-slate-500">Searching…</li>}
-          {results.isError && <li className="px-3 py-2 text-sm text-red-700">{results.error.message}</li>}
-          {results.data?.length === 0 && <li className="px-3 py-2 text-sm text-slate-500">No contact matches. Add the contact first.</li>}
-          {results.data?.map((contact) => (
-            <li key={contact.id} role="option" aria-selected="false">
-              <button type="button" onClick={() => { onChange(contact); setOpen(false); }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-brand-50">
-                <span className="truncate font-medium text-slate-900">{contact.name}</span>
-                <span className="shrink-0 text-xs"><BalanceText balance={contact.balance} /></span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+          {/* Messages sit outside the listbox: a listbox may only contain options. */}
+          {results.isPending && <p role="status" className="px-3 py-2 text-sm text-slate-500">Searching…</p>}
+          {results.isError && <p role="alert" className="px-3 py-2 text-sm text-red-700">{results.error.message}</p>}
+          {results.data?.length === 0 && <p role="status" className="px-3 py-2 text-sm text-slate-500">No contact matches. Add the contact first.</p>}
+          <ul id={`${id}-list`} role="listbox" aria-label={`${label} suggestions`} hidden={!results.data?.length}>
+            {results.data?.map((contact) => (
+              <li key={contact.id} role="option" aria-selected="false">
+                <button type="button" onClick={() => { onChange(contact); setOpen(false); }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-brand-50">
+                  <span className="truncate font-medium text-slate-900">{contact.name}</span>
+                  <span className="shrink-0 text-xs"><BalanceText balance={contact.balance} /></span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

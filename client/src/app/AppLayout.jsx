@@ -113,7 +113,7 @@ export function AppLayout() {
   return (
     <div className="flex h-full">
       {/* Desktop / tablet: fixed sidebar */}
-      <aside className="no-print hidden w-64 shrink-0 lg:block">
+      <aside aria-label="Sidebar" className="no-print hidden w-64 shrink-0 lg:block">
         <Sidebar />
       </aside>
 
@@ -121,7 +121,7 @@ export function AppLayout() {
       {menuOpen && (
         <div className="no-print fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-          <aside className="relative h-full w-72 max-w-[85%]">
+          <aside aria-label="Menu" className="relative h-full w-72 max-w-[85%]">
             <button
               type="button"
               onClick={() => setMenuOpen(false)}

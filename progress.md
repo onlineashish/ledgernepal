@@ -11,7 +11,7 @@
 | 2. Project foundation | ✅ Done (2a–2d). 184 automated tests passing (shared 119, server 51, client 14). Branch `phase2-foundation`, ready to merge. |
 | 3. Authentication & authorization | ✅ Done (3a–3e). 646 automated tests passing (shared 119, server 422, client 105). Branch `phase3-auth`, ready to merge. |
 | 4. Core business features | ✅ Done on branch `phase4-ledger` (4a–4h: ledger, contacts, sales & purchases, receipts & payments with allocations, dashboard, reports, CSV export, printing) |
-| 5. Hardening | ⚪ Not started |
+| 5. Hardening | ✅ Done on the same branch: authorization/query audit, randomized consistency test, edge cases, accessibility checks, operations docs. **1,626 automated tests passing** (shared 166, server 1,163, client 297). Never run in a real browser or on Render. |
 
 Legend: ⚪ not started · 🟡 in progress / awaiting input · ✅ done (tests passing)
 
@@ -194,11 +194,21 @@ Known gaps / later: Settings UI for per-member permission overrides and ownershi
 
 ## Phase 5 — Hardening
 
-- [ ] Authorization gap review (+ optional RLS)
-- [ ] Financial consistency tests
-- [ ] Edge-case tests
-- [ ] Responsive/usability polish
-- [ ] Install / deploy / backup / restore docs
+- [x] **Authorization gap review**
+  - Every route is guarded (route-guard coverage test, existing) and every endpoint of receipts, payments, reports and exports is now in the role matrix (`rbacMatrix.test.js`: each role × each endpoint, allowed exactly when the role's permissions include all that the endpoint needs) and in a cross-business attack suite (`tenantIsolationSettlements.test.js`).
+  - **Query audit** (`queryAudit.test.js`): reads every SQL statement in the server and fails if one touches a tenant table without `business_id` (reviewed exceptions are listed with reasons), and checks in the live database that every foreign key between tenant tables is composite with `business_id`. Mutation-checked: removing a filter makes it fail.
+  - `docs/api.md` and `docs/rbac.md` are generated from the real routes and permission matrix (`npm run docs`); a test fails if they go stale.
+  - **Row-Level Security: not added** (optional in the plan). Isolation rests on the application on every query, composite foreign keys and the tests above; RLS is a possible extra layer but needs a per-request database role and is separate work. Reasoning recorded in `docs/operations.md` §7.
+- [x] **Financial consistency tests** (`financialConsistency.test.js`): a seeded random run (invoices, bills, receipts, payments, direct entries, voids, re-allocations; 90 steps by default, `LEDGER_FUZZ_SEED` / `LEDGER_FUZZ_STEPS` to replay or lengthen) checked against an independent model: balances, ledger running balances, dashboard and report totals, paid amounts, allocation limits, unique numbering. Ran clean on seeds 11, 3333 and several random ones after the fix below.
+- [x] **Edge cases** (`edgeCases.test.js`): largest amounts, oversized invoices, rounding of VAT and discounts to the paisa, parts that add up to the whole, last day of Ashadh vs first of Shrawan, numbering across fiscal years, BS month boundaries in reports, the earliest and latest accepted dates, leap day, 20 simultaneous invoices.
+- **Bugs found and fixed by this phase's tests**
+  1. Applying the rest of a receipt/payment that already paid PART of an invoice returned a 500 (a second allocation for the same pair). Found by the random test; now merged into one allocation; regression test in the receipts/payments suite.
+  2. An amount over the limit said "at most 2 decimal places" instead of "too large"; large balances (13–14 digits) could not be formatted by `toPaisa`/`fromPaisa`, which would have broken a screen or a report. Now: one amount up to 999,999,999,999.99 (with a clear message), balances and totals up to 14 digits; invoice totals that would not fit are refused with a message instead of reaching the database.
+  3. A role-matrix assertion matched timestamps like `…:50.007Z` and failed about one run in thousands.
+  4. Accessibility problems found by axe: the contact picker's list had non-option children and no controlled element when empty; a badge `<div>` inside a `<dl>`; an unlabelled table column; two unnamed sidebars/asides.
+- [x] **Accessibility pass (automated)**: `accessibility.test.jsx` runs axe-core over 12 screens (dashboard, lists, forms, invoice, receipt, reports, settings): no violations. **Not covered, needs a real browser:** colour contrast, keyboard walk-through, screen-reader reading order, and how every screen looks at phone width. The layouts use responsive utility classes and wide tables scroll sideways, but I have not seen them on a phone.
+- [x] **Install / deploy / backup / restore docs**: `docs/operations.md` (first deploy, variables, everyday tasks, two-layer backups with Neon history and `pg_dump`, a restore drill, troubleshooting, security checklist, known limits), README updated, `npm run db:verify` (read-only integrity check usable on a restored copy).
+- Whole repo at the end of Phase 5: shared 166 · server 1,163 · client 297 (see the run in the next commit message).
 
 ---
 

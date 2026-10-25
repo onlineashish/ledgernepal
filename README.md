@@ -40,6 +40,8 @@ npm start                # production server (serves API and client/dist on one 
 npm run db:migrate       # apply pending migrations and sync roles/permissions
 npm run db:migrate:down  # revert the most recent migration (one step)
 npm run db:status        # list applied migrations
+npm run db:verify        # read-only check that the books are whole (use after a restore); `-- <url>` checks another database
+npm run docs             # regenerate docs/api.md and docs/rbac.md after changing routes or permissions
 ```
 
 ## Writing server tests
@@ -77,5 +79,15 @@ CI needs a repository secret named `TEST_DATABASE_URL` (GitHub: Settings → Sec
 
 ## Deploying to Render
 
-See [render.yaml](render.yaml). Set `APP_ORIGIN`, `DATABASE_URL` and `DATABASE_URL_DIRECT` in the Render dashboard.
+See [render.yaml](render.yaml) and the step-by-step guide in [docs/operations.md](docs/operations.md): first deploy,
+environment variables, backups with Neon and `pg_dump`, a restore drill, and what to do when something goes wrong.
 This has not been deployed yet; the first deploy will verify it.
+
+## Documentation
+
+| Document | What it is |
+|---|---|
+| [docs/operations.md](docs/operations.md) | Deploy, back up, restore, troubleshooting |
+| [docs/accounting-conventions.md](docs/accounting-conventions.md) | Debit/credit, voids, allocation, reports: the rules the books follow |
+| [docs/rbac.md](docs/rbac.md) | Roles and permissions (generated from the code) |
+| [docs/api.md](docs/api.md) | Every endpoint and the permission it needs (generated from the code) |

@@ -170,7 +170,7 @@ function DocumentForm({ kind, editingId, existing, initialContact, settings }) {
           </Card>
         </div>
 
-        <aside className="lg:col-span-1">
+        <aside aria-label="Document total" className="lg:col-span-1">
           <div className="space-y-4 lg:sticky lg:top-4">
             <Card title="Total">
               <dl className="space-y-2 text-sm" aria-label="Totals">

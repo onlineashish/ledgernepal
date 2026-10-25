@@ -114,7 +114,7 @@ export function SettlementsPage() {
                     <th className="hidden py-2 pr-3 md:table-cell">Method</th>
                     <th className="py-2 pr-3 text-right">Amount</th>
                     <th className="hidden py-2 pr-3 text-right md:table-cell">Advance</th>
-                    <th className="py-2" />
+                    <th className="py-2"><span className="sr-only">Status</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

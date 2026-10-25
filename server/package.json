@@ -13,7 +13,9 @@
     "db:migrate": "node scripts/migrate.js up",
     "db:migrate:down": "node scripts/migrate.js down",
     "db:seed": "node scripts/migrate.js seed",
-    "db:status": "node scripts/migrate.js status"
+    "db:status": "node scripts/migrate.js status",
+    "db:verify": "node scripts/verify-books.js",
+    "docs": "node scripts/gen-docs.js"
   },
   "dependencies": {
     "@ledgernepal/shared": "*",

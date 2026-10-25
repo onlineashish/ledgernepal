@@ -106,13 +106,15 @@ export function DocumentDetailPage({ kind }) {
               <>
                 <Total label="Paid" value={d.paid} />
                 <div className="flex items-baseline justify-between font-medium"><dt>Outstanding</dt><dd><Amount value={d.outstanding} /></dd></div>
-                <div className="flex flex-wrap gap-1 pt-1">
-                  <Badge tone={PAYMENT_STATUS_TONES[d.paymentStatus]}>{PAYMENT_STATUS_LABELS[d.paymentStatus]}</Badge>
-                  {d.overdue && <Badge tone="red">Overdue</Badge>}
-                </div>
               </>
             )}
           </dl>
+          {isPosted && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              <Badge tone={PAYMENT_STATUS_TONES[d.paymentStatus]}>{PAYMENT_STATUS_LABELS[d.paymentStatus]}</Badge>
+              {d.overdue && <Badge tone="red">Overdue</Badge>}
+            </div>
+          )}
         </Card>
       </div>
 
