@@ -1,7 +1,8 @@
 import { DIRECTIONS, OPENING_SIDES, directionOfEffect, openingSideOfEffect } from '@ledgernepal/shared/ledger';
 import { todayInNepal } from '@ledgernepal/shared/dates';
-import { conflict, forbidden, notFound } from '../../lib/errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../../lib/errors.js';
 import { writeAudit } from '../../lib/audit.js';
+import { num, toCsv } from '../../lib/csv.js';
 import { nextReference } from '../../lib/sequences.js';
 import { withTransaction } from '../../db/pool.js';
 import * as contactsRepo from '../contacts/repo.js';
@@ -251,4 +252,33 @@ export async function contactLedger({ pool, req }, contactId, query) {
     },
     meta: { page: query.page, pageSize: query.pageSize, total },
   };
+}
+
+// ------------------------------------------------------------------ export
+
+const EXPORT_LIMIT = 20_000; // rows; a bigger account is exported in date ranges
+
+/** Every row of one contact's account in the chosen period, as a CSV file. Recorded in the audit log. */
+export async function exportContactLedger({ pool, req }, contactId, query) {
+  const rows = [];
+  let first;
+  for (let page = 1; ; page += 1) {
+    const result = await contactLedger({ pool, req }, contactId, { ...query, page, pageSize: 200 });
+    first ??= result.data;
+    rows.push(...result.data.rows);
+    if (rows.length >= result.meta.total) break;
+    if (rows.length >= EXPORT_LIMIT) throw badRequest('This account is too large to export at once. Choose a shorter date range.');
+  }
+  await writeAudit(pool, {
+    req, businessId: req.business.id, actorUserId: req.auth.user.id, action: 'ledger.export', entityType: 'contact', entityId: contactId,
+    metadata: { rows: rows.length, from: query.from ?? null, to: query.to ?? null, search: query.q ?? null },
+  });
+  const headers = ['Date', 'Number', 'Type', 'Description', 'Reference', 'Debit', 'Credit', 'Balance'];
+  const body = [
+    ['', '', '', 'Opening balance', '', '', '', num(first.openingBalance)],
+    ...rows.map((r) => [r.txnDate, r.referenceNo, r.type, r.description, r.externalRef, r.debit ? num(r.debit) : '', r.credit ? num(r.credit) : '', num(r.balance)]),
+    ['', '', '', 'Total', '', num(first.totals.debit), num(first.totals.credit), num(first.closingBalance)],
+  ];
+  const safeName = first.contact.name.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'account';
+  return { name: `ledger-${safeName}.csv`, content: toCsv(headers, body) };
 }

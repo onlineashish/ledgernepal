@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../api/client.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import { PrintButton, PrintHeader } from '../../components/PrintTools.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { Amount } from '../../components/Money.jsx';
 import { Alert, Badge, Button, Card, Field, PageHeader } from '../../components/ui.jsx';
@@ -43,11 +44,13 @@ export function SettlementDetailPage({ kind }) {
 
   return (
     <>
+      {posted && <PrintHeader title={`${k.singular} ${s.referenceNo}`} subtitle={`${kind === 'receipt' ? 'Received from' : 'Paid to'}: ${s.contact.name} · Date: ${day(s.txnDate)}`} />}
       <PageHeader
         title={s.referenceNo}
         description={<span className="flex flex-wrap items-center gap-2">{s.status === 'voided' && <Badge tone="red">Voided</Badge>}<span>{k.singular} {kind === 'receipt' ? 'from' : 'to'} <Link to={`/contacts/${s.contact.id}`} className="font-medium text-brand-700 hover:underline">{s.contact.name}</Link></span></span>}
         actions={
           <>
+            {posted && <PrintButton label={`Print ${k.singular.toLowerCase()}`} />}
             {hasAdvance && auth.can(k.perms.create) && <Button variant="secondary" onClick={() => apply.mutate()} disabled={apply.isPending}>{apply.isPending ? 'Applying…' : 'Apply advance to open documents'}</Button>}
             {posted && auth.can(k.perms.create) && <Button variant="secondary" onClick={() => setDialog('notes')}>Edit notes and reference</Button>}
             {posted && auth.can(k.perms.void) && <Button variant="secondary" onClick={() => setDialog('void')}>Void</Button>}

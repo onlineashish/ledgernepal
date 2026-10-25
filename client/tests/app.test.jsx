@@ -39,12 +39,6 @@ describe('navigation', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
   });
 
-  it('is honest that unbuilt pages are not connected yet', async () => {
-    asRole('owner');
-    renderApp({ route: '/reports' });
-    expect(await screen.findByText(/nothing on this page is connected yet/i)).toBeInTheDocument();
-  });
-
   it('shows the business, the person and their role, and a log out button', async () => {
     asRole('accountant');
     renderApp();

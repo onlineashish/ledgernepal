@@ -5,6 +5,7 @@ import { apiFetch } from '../../api/client.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { DateField } from '../../components/DateField.jsx';
 import { Amount } from '../../components/Money.jsx';
+import { ExportActions, PrintHeader } from '../../components/PrintTools.jsx';
 import { Pagination } from '../../components/Pagination.jsx';
 import { Alert, Badge, Card, EmptyState } from '../../components/ui.jsx';
 import { useDayFormatter, useDebounced } from '../../lib/hooks.js';
@@ -30,6 +31,10 @@ export function ContactLedger({ contactId, archived }) {
   if (filters.to) query.set('to', filters.to);
   if (q) query.set('q', q);
 
+  const exportQuery = new URLSearchParams(query);
+  exportQuery.delete('page');
+  exportQuery.delete('pageSize');
+
   const ledger = useQuery({
     queryKey: ['ledger', 'contact', contactId, filters.from, filters.to, q, page],
     queryFn: ({ signal }) => apiFetch(`/ledger/contacts/${contactId}?${query}`, { signal }),
@@ -47,6 +52,8 @@ export function ContactLedger({ contactId, archived }) {
 
   return (
     <Card title="Ledger">
+      {ledger.data && <PrintHeader title={`Account of ${ledger.data.data.contact.name}`} subtitle={`${filters.from ? day(filters.from) : 'Start'} to ${filters.to ? day(filters.to) : 'today'}`} />}
+      <div className="no-print mb-3 flex justify-end"><ExportActions csvPath={`/ledger/contacts/${contactId}/export?${exportQuery}`} /></div>
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_2fr]">
         <DateField label="From" value={filters.from} onChange={(from) => change({ from })} />
         <DateField label="To" value={filters.to} onChange={(to) => change({ to })} />

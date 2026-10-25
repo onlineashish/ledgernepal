@@ -13,7 +13,8 @@ import { LoginPage } from '../auth/LoginPage.jsx';
 import { RegisterPage } from '../auth/RegisterPage.jsx';
 import { PublicOnly, RequireAuth, RequirePermission } from '../auth/guards.jsx';
 import { DashboardPage } from '../features/dashboard/DashboardPage.jsx';
-import { NotFoundPage, PlaceholderPage } from '../features/common/PlaceholderPage.jsx';
+import { NotFoundPage } from '../features/common/PlaceholderPage.jsx';
+import { ReportsPage } from '../features/reports/ReportsPage.jsx';
 import { DocumentDetailPage } from '../features/documents/DocumentDetailPage.jsx';
 import { DocumentFormPage } from '../features/documents/DocumentFormPage.jsx';
 import { DocumentsPage } from '../features/documents/DocumentsPage.jsx';
@@ -22,15 +23,7 @@ import { SettlementFormPage } from '../features/settlements/SettlementFormPage.j
 import { SettlementsPage } from '../features/settlements/SettlementsPage.jsx';
 import { SettingsPage } from '../features/settings/SettingsPage.jsx';
 import { TeamPage } from '../features/team/TeamPage.jsx';
-import { t } from '../i18n/en.js';
 import { AppLayout } from './AppLayout.jsx';
-
-const PHASE4 = 'Phase 4 (core business features)';
-
-// [path, title, permission(s) required to open it]. One placeholder per route until the real feature replaces it.
-const PLACEHOLDER_ROUTES = [
-  ['reports', t('nav.reports'), 'reports.view'],
-];
 
 export function App() {
   return (
@@ -77,17 +70,7 @@ export function App() {
           <Route path="ledger" element={<RequirePermission permission="ledger.view"><LedgerPage /></RequirePermission>} />
           <Route path="ledger/new" element={<RequirePermission permission="ledger.create"><LedgerEntryFormPage /></RequirePermission>} />
           <Route path="team" element={<RequirePermission permission="users.view"><TeamPage /></RequirePermission>} />
-          {PLACEHOLDER_ROUTES.map(([path, title, permission]) => (
-            <Route
-              key={path}
-              path={path}
-              element={
-                <RequirePermission permission={permission}>
-                  <PlaceholderPage title={title} phase={PHASE4} />
-                </RequirePermission>
-              }
-            />
-          ))}
+          <Route path="reports" element={<RequirePermission permission="reports.view"><ReportsPage /></RequirePermission>} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

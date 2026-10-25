@@ -29,3 +29,30 @@ body {
     display: none !important;
   }
 }
+
+/* Printing: only the page content, on white, with the business details on top. */
+.print-only {
+  display: none;
+}
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body,
+  main {
+    background: #fff !important;
+  }
+  section {
+    break-inside: avoid;
+  }
+  tr {
+    break-inside: avoid;
+  }
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}

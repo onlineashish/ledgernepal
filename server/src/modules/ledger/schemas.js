@@ -62,6 +62,14 @@ export const contactLedgerQuery = z
   })
   .refine((query) => !query.from || !query.to || query.from <= query.to, { message: 'The "from" date must not be after the "to" date', path: ['from'] });
 
+export const exportLedgerQuery = z
+  .strictObject({
+    from: isoDate('From date').optional(),
+    to: isoDate('To date').optional(),
+    q: z.string().trim().max(100, 'Search text is too long').optional(),
+  })
+  .refine((query) => !query.from || !query.to || query.from <= query.to, { message: 'The "from" date must not be after the "to" date', path: ['from'] });
+
 export const listEntriesQuery = z
   .strictObject({
     contactId: z.uuid({ error: 'Invalid contact id' }).optional(),

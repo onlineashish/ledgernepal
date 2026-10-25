@@ -5,6 +5,7 @@ import {
   contactLedgerQuery,
   correctEntryBody,
   createEntryBody,
+  exportLedgerQuery,
   entryIdParams,
   listEntriesQuery,
   updateEntryTextBody,
@@ -18,6 +19,13 @@ export function ledgerRoutes({ pool, guards }) {
 
   router.get('/contacts/:contactId', ...guards.tenant('ledger.view'), validate({ params: contactIdParams, query: contactLedgerQuery }), async (req, res) => {
     res.json(await service.contactLedger({ ...deps, req }, req.valid.params.contactId, req.valid.query));
+  });
+
+  // The whole account (all pages) as a spreadsheet file. Needs the export permission as well.
+  router.get('/contacts/:contactId/export', ...guards.tenant('ledger.view', 'reports.export'), validate({ params: contactIdParams, query: exportLedgerQuery }), async (req, res) => {
+    const file = await service.exportContactLedger({ ...deps, req }, req.valid.params.contactId, req.valid.query);
+    res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${file.name}"`, 'Cache-Control': 'no-store' });
+    res.send(file.content);
   });
 
   router.get('/entries', ...guards.tenant('ledger.view'), validate({ query: listEntriesQuery }), async (req, res) => {

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fromPaisa, toPaisa } from '@ledgernepal/shared/money';
 import { apiFetch } from '../../api/client.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import { PrintButton, PrintHeader } from '../../components/PrintTools.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { Amount } from '../../components/Money.jsx';
 import { Alert, Badge, Button, Card, Field, PageHeader } from '../../components/ui.jsx';
@@ -55,11 +56,13 @@ export function DocumentDetailPage({ kind }) {
 
   return (
     <>
+      {!isDraft && <PrintHeader title={`${k.singular} ${d.referenceNo}`} subtitle={`${k.partyLabel}: ${d.contact.name} · Date: ${day(d.txnDate)}`} />}
       <PageHeader
         title={d.referenceNo ?? `Draft ${k.singular.toLowerCase()}`}
         description={<span className="flex flex-wrap items-center gap-2"><Badge tone={STATUS_TONES[d.status]}>{STATUS_LABELS[d.status]}</Badge><span>{k.singular} for <Link to={`/contacts/${d.contact.id}`} className="font-medium text-brand-700 hover:underline">{d.contact.name}</Link></span></span>}
         actions={
           <>
+            {!isDraft && <PrintButton />}
             {isDraft && auth.can(k.perms.create) && <Button onClick={() => setDialog('post')}>Post</Button>}
             {isDraft && auth.can(k.perms.update) && <Button to={`${k.path}/${d.id}/edit`} variant="secondary">Edit</Button>}
             {isDraft && auth.can(k.perms.update) && !confirmDelete && <Button variant="secondary" onClick={() => setConfirmDelete(true)}>Delete draft</Button>}

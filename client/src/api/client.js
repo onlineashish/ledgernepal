@@ -77,3 +77,33 @@ export async function apiFetch(path, { method = 'GET', body, signal } = {}) {
   }
   return payload;
 }
+
+/**
+ * Downloads a file the API sends as an attachment (a CSV report) and hands it to the browser's save dialog.
+ * Errors come back as the same ApiError as everything else, so they can be shown in the page.
+ */
+export async function downloadFile(path) {
+  let response;
+  try {
+    response = await fetch(`/api${path}`, { credentials: 'same-origin', headers: { Accept: 'text/csv' } });
+  } catch {
+    throw new ApiError({ status: 0, code: 'NETWORK_ERROR', message: 'Cannot reach the server. Check your connection and try again.' });
+  }
+  if (!response.ok) {
+    let payload = null;
+    try { payload = await response.json(); } catch { /* not JSON */ }
+    if (response.status === 401 && onUnauthenticated) onUnauthenticated();
+    const e = payload?.error;
+    throw new ApiError({ status: response.status, code: e?.code ?? 'UNKNOWN_ERROR', message: e?.message ?? 'The download failed. Please try again.', details: e?.details, requestId: e?.requestId });
+  }
+  const name = /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') ?? '')?.[1] ?? 'export.csv';
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  return name;
+}

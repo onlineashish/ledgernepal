@@ -214,7 +214,8 @@ describe('money rules that combine permissions', () => {
     expect(detail.body.data.openingBalance).toBeNull();
     const list = await blind.get('/api/contacts?pageSize=100');
     expect(list.body.data.every((c) => c.balance === null)).toBe(true);
-    expect(JSON.stringify(list.body)).not.toContain('50.00');
+    expect(list.body.data.some((c) => 'openingBalance' in c && c.openingBalance !== null)).toBe(false);
+    expect(JSON.stringify(list.body.data.map((c) => c.balance))).not.toMatch(/\d/); // no amount anywhere (the old substring check also matched timestamps like "…:50.007Z")
     expect((await blind.get(`/api/ledger/contacts/${contact.id}`)).status).toBe(403);
     expect((await blind.get('/api/ledger/entries')).status).toBe(403);
   });
