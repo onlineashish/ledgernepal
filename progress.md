@@ -177,6 +177,10 @@ Known gaps / later: Settings UI for per-member permission overrides and ownershi
   - **Tests (4e):** shared +12, DB rules 19, API 52 per kind (104), run identically for receipts and payments. Server 966/966 passing. Client: one test (`documents.test.jsx`, "starts with one empty row…") timed out once during the full parallel run and passed 3/3 alone, so it is load-sensitive; this step did not touch the client.
   - **Known gaps:** the role matrix and cross-business isolation suites do not list the new endpoints separately (the route-guard coverage test and each suite's own other-business checks cover them); the closing "books stay consistent" test is a light sanity check, not an independent recomputation. No screens yet (4f).
 - [x] Paid status / overdue (server, in 4e)
+- [x] **4f Receipts & payments screens** (`client/src/features/settlements`)
+  - `/receipts-payments` (tabs Receipts / Payments, only those the person may view; filters: dates, method, active/voided, advances only, search); `/receipts-payments/new-receipt` and `/new-payment` (contact, amount, date, method, reference, then a table of the contact's unpaid invoices/bills with an amount box each and **Apply oldest first**; a live line says how much is applied and how much stays as an advance, and saving is blocked if more is applied than received); detail pages for each (what it paid, apply an advance later, void with reason and a warning that invoices become unpaid, edit notes).
+  - Invoice and bill pages now show paid / outstanding / Unpaid-Part paid-Paid / Overdue, the receipts or payments applied, and a "Record receipt/payment" button that starts with that document applied; the lists have a Payment filter and an Outstanding column. Contact page has Record receipt / Record payment. Receipts and payments link from the Ledger and the contact account.
+  - Tests: client +20 (269 total). Not checked in a real browser.
 - [ ] Dashboard & reports
 - [ ] Print & CSV export
 - [ ] Settings + BS/AD everywhere

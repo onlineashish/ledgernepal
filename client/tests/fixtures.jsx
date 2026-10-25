@@ -11,11 +11,12 @@ export const doc = (o = {}) => ({
   id: 'd1', type: 'sale', status: 'draft', referenceNo: null, txnDate: '2025-08-01', dueDate: null, externalRef: null, description: 'Rice',
   notes: null, contact: { id: 'c1', name: 'Ram Bahadur' }, total: '200.00', createdAt: '2026-10-01T00:00:00Z', postedAt: null,
   voidedAt: null, voidReason: null, createdBy: null,
+  paid: null, outstanding: null, paymentStatus: null, overdue: false, payments: [],
   totals: { subtotal: '200.00', discount: '0.00', taxable: '0.00', nonTaxable: '200.00', tax: '0.00', total: '200.00' },
   lines: [docLine()], ...o,
 });
 
-export const posted = (o = {}) => doc({ status: 'posted', referenceNo: 'SI-2082/83-0001', postedAt: '2026-10-02T00:00:00Z', ...o });
+export const posted = (o = {}) => doc({ status: 'posted', referenceNo: 'SI-2082/83-0001', postedAt: '2026-10-02T00:00:00Z', paid: '0.00', outstanding: '200.00', paymentStatus: 'unpaid', ...o });
 
 /** A row of the list (no lines). */
 export const listRow = (o = {}) => {
@@ -33,3 +34,16 @@ export const settingsPayload = ({ settings = {}, business = {} } = {}) =>
       ...settings,
     },
   });
+
+/** A receipt / payment as the API returns it. */
+export const settlement = (o = {}) => ({
+  id: 'r1', type: 'receipt', status: 'posted', referenceNo: 'RC-2082/83-0001', txnDate: '2025-08-10', amount: '400.00', method: 'cash',
+  externalRef: null, description: null, notes: null, contact: { id: 'c1', name: 'Ram Bahadur' }, allocated: '0.00', unallocated: '400.00',
+  allocations: [], createdAt: '2026-10-01T00:00:00Z', createdBy: null, voidedAt: null, voidReason: null, ...o,
+});
+
+/** A row of GET /receipts/open-documents. */
+export const openDoc = (o = {}) => ({
+  id: 'd1', referenceNo: 'SI-2082/83-0001', txnDate: '2025-08-01', dueDate: null, description: 'Rice', total: '1000.00', paid: '0.00',
+  outstanding: '1000.00', overdue: false, ...o,
+});

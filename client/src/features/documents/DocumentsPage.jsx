@@ -8,7 +8,7 @@ import { Amount } from '../../components/Money.jsx';
 import { Pagination } from '../../components/Pagination.jsx';
 import { Alert, Badge, Button, Card, EmptyState, PageHeader } from '../../components/ui.jsx';
 import { useDayFormatter, useDebounced } from '../../lib/hooks.js';
-import { KINDS, STATUS_LABELS, STATUS_TONES } from './kinds.js';
+import { KINDS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_TONES, STATUS_LABELS, STATUS_TONES } from './kinds.js';
 
 const PAGE_SIZE = 25;
 
@@ -17,22 +17,22 @@ export function DocumentsPage({ kind }) {
   const k = KINDS[kind];
   const auth = useAuth();
   const day = useDayFormatter();
-  const [filters, setFilters] = useState({ from: '', to: '', q: '', status: 'all' });
+  const [filters, setFilters] = useState({ from: '', to: '', q: '', status: 'all', payment: 'all' });
   const [page, setPage] = useState(1);
   const q = useDebounced(filters.q.trim(), 300);
   const change = (patch) => { setFilters((f) => ({ ...f, ...patch })); setPage(1); };
 
-  const query = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), status: filters.status });
+  const query = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), status: filters.status, payment: filters.payment });
   if (filters.from) query.set('from', filters.from);
   if (filters.to) query.set('to', filters.to);
   if (q) query.set('q', q);
 
   const documents = useQuery({
-    queryKey: [kind, 'list', filters.from, filters.to, q, filters.status, page],
+    queryKey: [kind, 'list', filters.from, filters.to, q, filters.status, filters.payment, page],
     queryFn: ({ signal }) => apiFetch(`${k.api}?${query}`, { signal }),
     placeholderData: (previous) => previous,
   });
-  const filtered = Boolean(filters.from || filters.to || q || filters.status !== 'all');
+  const filtered = Boolean(filters.from || filters.to || q || filters.status !== 'all' || filters.payment !== 'all');
 
   return (
     <>
@@ -42,7 +42,7 @@ export function DocumentsPage({ kind }) {
         actions={auth.can(k.perms.create) && <Button to={`${k.path}/new`}>{k.newLabel}</Button>}
       />
       <Card>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <DateField label="From" value={filters.from} onChange={(from) => change({ from })} />
           <DateField label="To" value={filters.to} onChange={(to) => change({ to })} />
           <div>
@@ -52,6 +52,17 @@ export function DocumentsPage({ kind }) {
               <option value="draft">Drafts</option>
               <option value="posted">Posted</option>
               <option value="voided">Voided</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="doc-payment" className="mb-1 block text-sm font-medium text-slate-700">Payment</label>
+            <select id="doc-payment" value={filters.payment} onChange={(e) => change({ payment: e.target.value })} className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              <option value="all">Any</option>
+              <option value="open">Not fully paid</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="partial">Part paid</option>
+              <option value="paid">Paid</option>
+              <option value="overdue">Overdue</option>
             </select>
           </div>
           <div>
@@ -80,6 +91,7 @@ export function DocumentsPage({ kind }) {
                     <th className="py-2 pr-3">{k.partyLabel}</th>
                     <th className="hidden py-2 pr-3 md:table-cell">Due</th>
                     <th className="py-2 pr-3 text-right">Total</th>
+                    <th className="hidden py-2 pr-3 text-right md:table-cell">Outstanding</th>
                     <th className="py-2">Status</th>
                   </tr>
                 </thead>
@@ -94,7 +106,12 @@ export function DocumentsPage({ kind }) {
                       <td className="py-2 pr-3"><Link to={`/contacts/${d.contact.id}`} className="hover:underline">{d.contact.name}</Link></td>
                       <td className="hidden whitespace-nowrap py-2 pr-3 md:table-cell">{d.dueDate ? day(d.dueDate) : '–'}</td>
                       <td className="py-2 pr-3 text-right"><Amount value={d.total} /></td>
-                      <td className="py-2"><Badge tone={STATUS_TONES[d.status]}>{STATUS_LABELS[d.status]}</Badge></td>
+                      <td className="hidden py-2 pr-3 text-right md:table-cell">{d.status === 'posted' ? <Amount value={d.outstanding} /> : '–'}</td>
+                      <td className="py-2">
+                        <Badge tone={STATUS_TONES[d.status]}>{STATUS_LABELS[d.status]}</Badge>
+                        {d.status === 'posted' && <span className="ml-1"><Badge tone={PAYMENT_STATUS_TONES[d.paymentStatus]}>{PAYMENT_STATUS_LABELS[d.paymentStatus]}</Badge></span>}
+                        {d.overdue && <span className="ml-1"><Badge tone="red">Overdue</Badge></span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

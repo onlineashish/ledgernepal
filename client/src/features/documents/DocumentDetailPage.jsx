@@ -9,7 +9,7 @@ import { Amount } from '../../components/Money.jsx';
 import { Alert, Badge, Button, Card, Field, PageHeader } from '../../components/ui.jsx';
 import { fieldErrors, generalMessage } from '../../lib/formErrors.js';
 import { useDayFormatter } from '../../lib/hooks.js';
-import { KINDS, STATUS_LABELS, STATUS_TONES } from './kinds.js';
+import { KINDS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_TONES, STATUS_LABELS, STATUS_TONES } from './kinds.js';
 
 // What was taken off a line: its own discount plus its share of the discount on the whole document.
 const lineDiscount = (l) => toPaisa(l.discount) + toPaisa(l.invoiceDiscountShare);
@@ -69,6 +69,7 @@ export function DocumentDetailPage({ kind }) {
                 <Button variant="secondary" onClick={() => setConfirmDelete(false)}>Cancel</Button>
               </>
             )}
+            {isPosted && Number(d.outstanding) > 0 && auth.can(k.settle.perm) && <Button to={`${k.settle.path}?contactId=${d.contact.id}&documentId=${d.id}`}>{k.settle.label}</Button>}
             {isPosted && auth.can(k.perms.update) && <Button variant="secondary" onClick={() => setDialog('notes')}>Edit notes and reference</Button>}
             {isPosted && auth.can(k.perms.void) && <Button variant="secondary" onClick={() => setDialog('void')}>Void</Button>}
           </>
@@ -98,6 +99,16 @@ export function DocumentDetailPage({ kind }) {
             <div className="flex items-baseline justify-between border-t border-slate-200 pt-2 text-base font-semibold">
               <dt>Total</dt><dd><Amount value={d.totals.total} /></dd>
             </div>
+            {isPosted && (
+              <>
+                <Total label="Paid" value={d.paid} />
+                <div className="flex items-baseline justify-between font-medium"><dt>Outstanding</dt><dd><Amount value={d.outstanding} /></dd></div>
+                <div className="flex flex-wrap gap-1 pt-1">
+                  <Badge tone={PAYMENT_STATUS_TONES[d.paymentStatus]}>{PAYMENT_STATUS_LABELS[d.paymentStatus]}</Badge>
+                  {d.overdue && <Badge tone="red">Overdue</Badge>}
+                </div>
+              </>
+            )}
           </dl>
         </Card>
       </div>
@@ -132,6 +143,25 @@ export function DocumentDetailPage({ kind }) {
           </table>
         </div>
       </Card>
+
+      {isPosted && (
+        <Card title={kind === 'sale' ? 'Receipts applied' : 'Payments applied'} className="mt-6">
+          {d.payments.length === 0 ? <p className="text-sm text-slate-600">Nothing has been {kind === 'sale' ? 'received' : 'paid'} against this yet.</p> : (
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs uppercase text-slate-500"><tr><th className="py-2 pr-3">Number</th><th className="py-2 pr-3">Date</th><th className="py-2 text-right">Applied</th></tr></thead>
+              <tbody className="divide-y divide-slate-100">
+                {d.payments.map((p) => (
+                  <tr key={p.id}>
+                    <td className="py-2 pr-3"><Link to={`/receipts-payments/${p.payment.type}s/${p.payment.id}`} className="font-medium text-brand-700 hover:underline">{p.payment.referenceNo}</Link></td>
+                    <td className="py-2 pr-3">{day(p.payment.txnDate)}</td>
+                    <td className="py-2 text-right"><Amount value={p.amount} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+      )}
 
       <p className="mt-6 text-sm"><Link to={k.path} className="text-brand-600 hover:underline">← All {k.plural.toLowerCase()}</Link></p>
 

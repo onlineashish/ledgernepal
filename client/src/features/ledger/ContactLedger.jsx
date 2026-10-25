@@ -12,8 +12,8 @@ import { CorrectEntryModal, VoidEntryModal } from './EntryModals.jsx';
 
 const PAGE_SIZE = 50;
 // Invoices and bills open their own page; direct entries are corrected or voided right here.
-const DOCUMENT_PATHS = { sale: '/sales', purchase: '/purchases' };
-const TYPE_BADGES = { sale: ['Sales invoice', 'green'], purchase: ['Purchase bill', 'amber'] };
+const DOCUMENT_PATHS = { sale: '/sales', purchase: '/purchases', receipt: '/receipts-payments/receipts', payment: '/receipts-payments/payments' };
+const TYPE_BADGES = { sale: ['Sales invoice', 'green'], purchase: ['Purchase bill', 'amber'], receipt: ['Receipt', 'blue'], payment: ['Payment', 'blue'] };
 
 /** One contact's account: every posted line with debit, credit and the running balance. */
 export function ContactLedger({ contactId, archived }) {

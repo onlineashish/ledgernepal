@@ -12,7 +12,7 @@ import { useDayFormatter, useDebounced } from '../../lib/hooks.js';
 const PAGE_SIZE = 25;
 
 // Invoices and bills have a page of their own; every other line is just a line in the books.
-const DOCUMENT_PATHS = { sale: '/sales', purchase: '/purchases' };
+const DOCUMENT_PATHS = { sale: '/sales', purchase: '/purchases', receipt: '/receipts-payments/receipts', payment: '/receipts-payments/payments' };
 const KIND_BADGES = {
   opening_balance: ['Opening balance', 'blue'],
   sale: ['Sales invoice', 'green'],

@@ -17,6 +17,9 @@ import { NotFoundPage, PlaceholderPage } from '../features/common/PlaceholderPag
 import { DocumentDetailPage } from '../features/documents/DocumentDetailPage.jsx';
 import { DocumentFormPage } from '../features/documents/DocumentFormPage.jsx';
 import { DocumentsPage } from '../features/documents/DocumentsPage.jsx';
+import { SettlementDetailPage } from '../features/settlements/SettlementDetailPage.jsx';
+import { SettlementFormPage } from '../features/settlements/SettlementFormPage.jsx';
+import { SettlementsPage } from '../features/settlements/SettlementsPage.jsx';
 import { SettingsPage } from '../features/settings/SettingsPage.jsx';
 import { TeamPage } from '../features/team/TeamPage.jsx';
 import { t } from '../i18n/en.js';
@@ -26,9 +29,6 @@ const PHASE4 = 'Phase 4 (core business features)';
 
 // [path, title, permission(s) required to open it]. One placeholder per route until the real feature replaces it.
 const PLACEHOLDER_ROUTES = [
-  ['receipts-payments', t('nav.receiptsPayments'), ['receipts.view', 'payments.view']],
-  ['receipts-payments/new-receipt', t('quick.recordReceipt'), 'receipts.create'],
-  ['receipts-payments/new-payment', t('quick.recordPayment'), 'payments.create'],
   ['reports', t('nav.reports'), 'reports.view'],
 ];
 
@@ -64,6 +64,11 @@ export function App() {
           <Route path="purchases/new" element={<RequirePermission permission="purchases.create"><DocumentFormPage kind="purchase" mode="create" /></RequirePermission>} />
           <Route path="purchases/:id" element={<RequirePermission permission="purchases.view"><DocumentDetailPage kind="purchase" /></RequirePermission>} />
           <Route path="purchases/:id/edit" element={<RequirePermission permission="purchases.update"><DocumentFormPage kind="purchase" mode="edit" /></RequirePermission>} />
+          <Route path="receipts-payments" element={<RequirePermission permission={['receipts.view', 'payments.view']}><SettlementsPage /></RequirePermission>} />
+          <Route path="receipts-payments/new-receipt" element={<RequirePermission permission="receipts.create"><SettlementFormPage kind="receipt" /></RequirePermission>} />
+          <Route path="receipts-payments/new-payment" element={<RequirePermission permission="payments.create"><SettlementFormPage kind="payment" /></RequirePermission>} />
+          <Route path="receipts-payments/receipts/:id" element={<RequirePermission permission="receipts.view"><SettlementDetailPage kind="receipt" /></RequirePermission>} />
+          <Route path="receipts-payments/payments/:id" element={<RequirePermission permission="payments.view"><SettlementDetailPage kind="payment" /></RequirePermission>} />
           <Route path="settings" element={<RequirePermission permission="business.view"><SettingsPage /></RequirePermission>} />
           <Route path="contacts" element={<RequirePermission permission="contacts.view"><ContactsPage /></RequirePermission>} />
           <Route path="contacts/new" element={<RequirePermission permission="contacts.create"><ContactFormPage mode="create" /></RequirePermission>} />
