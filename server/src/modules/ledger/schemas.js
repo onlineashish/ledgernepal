@@ -68,7 +68,7 @@ export const listEntriesQuery = z
     from: isoDate('From date').optional(),
     to: isoDate('To date').optional(),
     status: z.enum(['posted', 'voided', 'all']).default('posted'),
-    type: z.enum(['ledger_entry', 'opening_balance', 'all']).default('all'),
+    type: z.enum(['ledger_entry', 'opening_balance', 'sale', 'purchase', 'receipt', 'payment', 'all']).default('all'),
     q: z.string().trim().max(100, 'Search text is too long').optional(),
     ...pagination,
   })

@@ -229,6 +229,41 @@ describe('View Ledger (all entries)', () => {
     await waitFor(() => expect(api.lastCall('GET /ledger/entries').query.get('q')).toBe('cement'));
   });
 
+  it('also shows sales invoices and purchase bills, labelled, with a link to each document', async () => {
+    mockApi(routes([
+      entry({ id: 's1', type: 'sale', referenceNo: 'SI-2082/83-0005', direction: null, effect: 'debit', amount: '1130.00', description: 'Cement +1 more' }),
+      entry({ id: 'p1', type: 'purchase', referenceNo: 'PB-2082/83-0002', direction: null, effect: 'credit', amount: '400.00', description: 'Stock', contact: { id: 'c2', name: 'Sita' } }),
+      entry({ id: 'e1', referenceNo: 'LE-2082/83-0001' }),
+    ]));
+    renderApp({ route: '/ledger' });
+
+    const sale = (await screen.findByRole('link', { name: 'SI-2082/83-0005' })).closest('tr');
+    expect(sale.querySelector('a').getAttribute('href')).toBe('/sales/s1');
+    expect(within(sale).getByText('Sales invoice')).toBeInTheDocument();
+    expect(within(sale).getByText('रु 1,130.00')).toBeInTheDocument();
+    expect(within(sale).getByText('they owe you more')).toBeInTheDocument();
+    expect(within(sale).queryByText('You gave')).not.toBeInTheDocument(); // an invoice is not a "You gave" entry
+
+    const bill = screen.getByRole('link', { name: 'PB-2082/83-0002' }).closest('tr');
+    expect(bill.querySelector('a').getAttribute('href')).toBe('/purchases/p1');
+    expect(within(bill).getByText('Purchase bill')).toBeInTheDocument();
+    expect(within(bill).getByText('they owe you less')).toBeInTheDocument();
+
+    expect(screen.queryByRole('link', { name: 'LE-2082/83-0001' })).not.toBeInTheDocument(); // direct entries have no page of their own
+  });
+
+  it('can be narrowed to one kind of transaction on the server', async () => {
+    const api = mockApi(routes([entry()]));
+    const user = userEvent.setup();
+    renderApp({ route: '/ledger' });
+    await screen.findByText('LE-2082/83-0001');
+    expect(api.calledWith('GET /ledger/entries')[0].query.has('type')).toBe(false); // all types by default
+    await user.selectOptions(screen.getByLabelText('Type'), 'sale');
+    await waitFor(() => expect(api.lastCall('GET /ledger/entries').query.get('type')).toBe('sale'));
+    await user.selectOptions(screen.getByLabelText('Type'), 'all');
+    await waitFor(() => expect(api.lastCall('GET /ledger/entries').query.has('type')).toBe(false));
+  });
+
   it('invites the first entry, only to someone who can add one', async () => {
     mockApi(routes([]));
     renderApp({ route: '/ledger' });

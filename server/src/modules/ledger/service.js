@@ -14,8 +14,10 @@ export const toEntry = (row, req) => ({
   referenceNo: row.reference_no,
   type: row.type,
   status: row.status,
-  // The way the person chose it: "You gave / You got" for direct entries, "they owe me / I owe them" for opening balances.
-  direction: row.type === 'opening_balance' ? openingSideOfEffect(row.effect) : directionOfEffect(row.effect),
+  // The way the person chose it: "You gave / You got" for direct entries, "they owe me / I owe them" for opening
+  // balances. Invoices, bills, receipts and payments have a fixed effect, so there is no choice to report.
+  direction:
+    row.type === 'opening_balance' ? openingSideOfEffect(row.effect) : row.type === 'ledger_entry' ? directionOfEffect(row.effect) : null,
   effect: row.effect,
   txnDate: row.txn_date,
   amount: row.amount,

@@ -113,6 +113,28 @@ export function defineDocumentsSuite(k) {
       expect(edit.body.data.totals.total).toBe('300.00');
     });
 
+    it('shows up on the main Ledger list once posted (not as a draft), labelled as what it is, and can be filtered by kind', async () => {
+      const c = await newContact();
+      const draft = await created(c.id);
+      const doc = await created(c.id, { post: true, lines: [line({ description: 'Ledger visible goods' })] });
+      await owner.post('/api/ledger/entries', { contactId: c.id, txnDate: '2025-08-02', direction: 'you_gave', amount: '10' });
+      const list = async (qs = '') => (await owner.get(`/api/ledger/entries?contactId=${c.id}&${qs}`)).body.data;
+
+      const all = await list();
+      expect(all.map((e) => e.id)).toContain(doc.id);
+      expect(all.map((e) => e.id)).not.toContain(draft.id); // a draft is not in the books yet
+      const row = all.find((e) => e.id === doc.id);
+      expect(row).toMatchObject({ type: k.type, status: 'posted', referenceNo: doc.referenceNo, amount: '200.00', description: 'Ledger visible goods', direction: null, effect: k.type === 'sale' ? 'debit' : 'credit' });
+
+      expect((await list(`type=${k.type}`)).map((e) => e.id)).toEqual([doc.id]);
+      expect((await list('type=ledger_entry')).map((e) => e.type)).toEqual(['ledger_entry']);
+      expect((await list(`type=${k.type === 'sale' ? 'purchase' : 'sale'}`))).toEqual([]);
+
+      await owner.post(`${k.path}/${doc.id}/void`, { reason: 'ledger list void test' });
+      expect((await list(`type=${k.type}`)).map((e) => e.id)).toEqual([]); // voided are hidden by default
+      expect((await list(`type=${k.type}&status=voided`)).map((e) => e.id)).toEqual([doc.id]);
+    });
+
     it('records who made it and an audit entry', async () => {
         const c = await newContact();
         const doc = await created(c.id, { post: true });

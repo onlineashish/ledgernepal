@@ -75,7 +75,7 @@ export async function updateText(db, { businessId, userId, id, changes }) {
 
 export async function listEntries(db, businessId, { contactId, from, to, status, type, q, page, pageSize }) {
   const filter = `
-    t.business_id = $1 AND t.type IN ('ledger_entry', 'opening_balance')
+    t.business_id = $1 AND t.status <> 'draft'   -- every posted or voided transaction; drafts are not in the books yet
     AND ($2::uuid IS NULL OR t.contact_id = $2)
     AND ($3::date IS NULL OR t.txn_date >= $3) AND ($4::date IS NULL OR t.txn_date <= $4)
     AND ($5::text = 'all' OR t.status = $5)
